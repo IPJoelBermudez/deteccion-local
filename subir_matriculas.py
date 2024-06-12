@@ -12,20 +12,25 @@ estrucutraJson = {
     }]
 }
 
-
-
+def subir_datos(data_camaras):
+    pass
 
 def obtener_datos(request):
+    # Formateo los headers, separando todo en una lista
     headers = request.split('\r\n')
+
+    # Busco cuando termine en POST
     if headers[0].startswith('POST'):
-        data_lpr =  " ".join(headers[headers.index('{'):-1])
-        data_lpr = json.loads(data_lpr.replace(' ','') + '}')
-        
-        print(data_lpr)
-        print(data_lpr)
-        # Enviar una respuesta al cliente
-        response = 'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nPetición POST recibida'
-        client_socket.sendall(response.encode())
+        # Buscar la línea en blanco que indica el final de los headers
+        idx = request.find('\r\n\r\n')
+        if idx != -1:
+            body = request[idx + 4:]  # El cuerpo de la solicitud empieza después de la línea en blanco
+            data_camaras = json.loads(body)  # Parsear el JSON
+            print(data_camaras)
+            return data_camaras 
+        else:
+            response = 'HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nCuerpo de solicitud no encontrado'
+            client_socket.sendall(response.encode())
     else:
         response = 'HTTP/1.1 405 Method Not Allowed\r\nContent-Type: text/plain\r\n\r\nMétodo no permitido'
         client_socket.sendall(response.encode())
@@ -47,8 +52,9 @@ if __name__ == "__main__":
             client_socket, client_address = server_socket.accept()
             with client_socket:
                 print(f"Conexión establecida con {client_address}")
-                request = client_socket.recv(1024).decode()
+                request = client_socket.recv(2048).decode()
                 obtener_datos(request)
+                #obtener_datos(request)
                 response = 'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nJoya'
                 client_socket.sendall(response.encode())
                 break
