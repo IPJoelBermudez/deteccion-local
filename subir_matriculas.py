@@ -1,20 +1,29 @@
 import socket
 import requests
+from requests.auth import HTTPDigestAuth 
 import json
 import argparse
 
-estrucutraJson = {
-    "LicensePlateInfoList": [{
-        "LicensePlate": "BBB1234",
-        "listType": "whiteList",
-        "createTime": "2024-03-26T16:30:34",
-        "effectiveStartDate": "2024-03-26",
-        "effectiveTime": "2024-03-26",
-        "id": ""
-    }]
-}
 
-def subir_datos():
+def subir_datos(datos):
+  
+    ip_camaras = datos['camaras']
+    plates     = datos['plates']
+    for ip_camara in ip_camaras:
+        for plate in plates:
+            json_matricula_subida = {
+            "LicensePlateInfoList": [{
+                "LicensePlate": f"{plate}",
+                "listType": "whiteList",
+                "createTime": "2024-03-26T16:30:34",
+                "effectiveStartDate": "2024-03-26",
+                "effectiveTime": "3000-12-01",
+                "id": ""
+                }]
+            }
+            consulta = requests.put(f"http://{ip_camara}/ISAPI/Traffic/channels/1/licensePlateAuditData/record?format=json",json=json_matricula_subida,auth=HTTPDigestAuth(user,passwd))
+            print(consulta.status_code)
+
     return NotImplementedError("Por implementar")
 
 
@@ -29,7 +38,6 @@ def obtener_datos(request):
         if idx != -1:
             body = request[idx + 4:]  # El cuerpo de la solicitud empieza después de la línea en blanco
             data_camaras = json.loads(body)  # Parsear el JSON
-            print(data_camaras)
             return data_camaras 
         else:
             response = 'HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nCuerpo de solicitud no encontrado'
@@ -39,8 +47,8 @@ def obtener_datos(request):
         client_socket.sendall(response.encode())
 
 if __name__ == "__main__":
-    global usuario
-    global contraseña
+    global user
+    global passwd
     global puerto
 
     # Configurar argumentos de línea de comandos
@@ -51,8 +59,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Obtener usuario, contraseña y puerto
-    usuario = args.usuario
-    contraseña = args.contraseña
+    user = args.usuario
+    passwd = args.contraseña
     puerto = args.puerto
 
     # Configuración del servidor
@@ -70,7 +78,17 @@ if __name__ == "__main__":
             with client_socket:
                 print(f"Conexión establecida con {client_address}")
                 request = client_socket.recv(2048).decode()
-                obtener_datos(request)
-                response = 'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nJoya'
+                print(request)
+                # Consulto que tipo de accion se va a realizar
+                if request.split(" ")[1] == "/DeletePlate":
+                    response = 'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nEliminar'
+
+                elif request.split(" ")[1] == "/AddPlate":
+                    subir_datos(obtener_datos(request))
+                    response = 'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nDatos agregados'
+                else:
+                    response = 'HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nCuerpo de solicitud no encontrado'
+                
+                # Envio la respuesta
                 client_socket.sendall(response.encode())
                 break
