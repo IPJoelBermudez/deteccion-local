@@ -1,6 +1,5 @@
 import socket
-import ipaddress
-
+import json
 
 estrucutraJson = {
     "LicensePlateInfoList": [{
@@ -14,13 +13,16 @@ estrucutraJson = {
 }
 
 
-def obtener_matricula(request):
+
+
+def obtener_datos(request):
     headers = request.split('\r\n')
     if headers[0].startswith('POST'):
-        matricula = " ".join(headers[0].split("="))
-        matricula = matricula.split(" ")[2]
+        data_lpr =  " ".join(headers[headers.index('{'):-1])
+        data_lpr = json.loads(data_lpr.replace(' ','') + '}')
         
-
+        print(data_lpr)
+        print(data_lpr)
         # Enviar una respuesta al cliente
         response = 'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nPetición POST recibida'
         client_socket.sendall(response.encode())
@@ -28,11 +30,7 @@ def obtener_matricula(request):
         response = 'HTTP/1.1 405 Method Not Allowed\r\nContent-Type: text/plain\r\n\r\nMétodo no permitido'
         client_socket.sendall(response.encode())
 
-    return matricula
-
 if __name__ == "__main__":
-
-
     # Configuración del servidor
     HOST = socket.getfqdn() # Dirección IP del servidor (localhost)
     IP_LOCAL =  socket.gethostbyname_ex(HOST)[2][1]
@@ -50,5 +48,8 @@ if __name__ == "__main__":
             with client_socket:
                 print(f"Conexión establecida con {client_address}")
                 request = client_socket.recv(1024).decode()
-                print(obtener_matricula(request))
+                obtener_datos(request)
+                response = 'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nJoya'
+                client_socket.sendall(response.encode())
                 break
+                
