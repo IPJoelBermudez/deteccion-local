@@ -4,7 +4,7 @@
 Ejecutar el servidor con los argumentos de línea de comandos necesarios:
 
 ```sh
-python server.py -u USUARIO -c CONTRASEÑA [-p PUERTO]
+python servidor_manipulador.py -u USUARIO -c CONTRASEÑA [-p PUERTO]
 ```
 
 - `-u, --usuario`: El usuario para la autenticación HTTP Digest.
