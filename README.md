@@ -1,5 +1,5 @@
 
-## Uso
+## Gestor de Matrículas LPR
 
 Ejecutar el servidor con los argumentos de línea de comandos necesarios:
 
