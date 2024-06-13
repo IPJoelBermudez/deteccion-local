@@ -1,5 +1,21 @@
 import socket
+import subprocess
 import requests
+
+# Lista de dependencias
+dependencies = ["requests"]
+
+# Función para instalar las dependencias usando pip
+def install_dependencies(packages):
+    for package in packages:
+        try:
+            __import__(package)
+        except ImportError:
+            print(f"[INSTALLING] Instalando {package}...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+# Instalar las dependencias
+install_dependencies(dependencies)
 from requests.auth import HTTPDigestAuth
 import xml.etree.ElementTree as ET
 import json
