@@ -44,7 +44,6 @@ def subir_matricula(datos):
             client_socket.sendall(response.encode())
             print(f"[RESPONSE] Enviando respuesta al cliente: {response}")
 
-    return NotImplementedError("Por implementar")
 
 def obtener_datos(request):
     # Separar los headers en una lista
