@@ -29,8 +29,14 @@ Añadir una o más matrículas a la lista blanca.
 - Cuerpo de la solicitud: JSON con las IP de las cámaras y las matrículas a agregar.
   ```json
   {
-      "camaras": ["192.168.1.10", "192.168.1.11"],
-      "matriculas": ["ABC123", "XYZ789"]
+      "camaras":
+        ["192.168.1.10",
+        "192.168.1.11"
+        ],
+      "matriculas":
+        ["ABC123",
+        "XYZ789"
+        ]
   }
   ```
 
@@ -42,8 +48,14 @@ Eliminar una o más matrículas de la lista blanca.
 - Cuerpo de la solicitud: JSON con las IP de las cámaras y las matrículas a eliminar.
   ```json
   {
-      "camaras": ["192.168.1.10", "192.168.1.11"],
-      "matriculas": ["ABC123", "XYZ789"]
+      "camaras":
+        ["192.168.1.10",
+        "192.168.1.11"
+        ],
+      "matriculas":
+        ["ABC123",
+        "XYZ789"
+        ]
   }
   ```
 
