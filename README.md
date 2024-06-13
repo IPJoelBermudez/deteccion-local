@@ -14,7 +14,7 @@ python servidor_manipulador.py -u USUARIO -c CONTRASEÑA [-p PUERTO]
 **Ejemplo:**
 
 ```sh
-python server.py -u admin -c password -p 8080
+python servidor_manipulador.py -u admin -c password -p 8080
 ```
 
 
