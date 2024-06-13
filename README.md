@@ -30,12 +30,14 @@ Añadir una o más matrículas a la lista blanca.
   ```json
   {
       "camaras":
-        ["192.168.1.10",
-        "192.168.1.11"
+        [
+          "192.168.1.10",
+          "192.168.1.11"
         ],
       "matriculas":
-        ["ABC123",
-        "XYZ789"
+        [
+          "ABC123",
+          "XYZ789"
         ]
   }
   ```
@@ -49,12 +51,14 @@ Eliminar una o más matrículas de la lista blanca.
   ```json
   {
       "camaras":
-        ["192.168.1.10",
-        "192.168.1.11"
+        [
+          "192.168.1.10",
+          "192.168.1.11"
         ],
       "matriculas":
-        ["ABC123",
-        "XYZ789"
+        [
+          "ABC123",
+          "XYZ789"
         ]
   }
   ```
