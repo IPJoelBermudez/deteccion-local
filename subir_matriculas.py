@@ -4,6 +4,15 @@ from requests.auth import HTTPDigestAuth
 import xml.etree.ElementTree as ET
 import json
 import argparse
+import time
+import signal
+import sys
+
+# Variables globales para el usuario, la contraseña y el puerto
+global user
+global passwd
+global PUERTO
+global server_socket
 
 def obtener_id_matricula(datos):
     ids = []
@@ -39,7 +48,6 @@ def obtener_id_matricula(datos):
     
     return ids
 
-
 def borrar_matricula(datos):
     ip_camaras = datos['camaras']
     ids = obtener_id_matricula(datos)
@@ -57,7 +65,8 @@ def borrar_matricula(datos):
                 print(f"[ERROR] Fallo en la petición: {response.status_code}")
                 continue  # Salta a la siguiente iteración si hay un error en la solicitud
             client_socket.sendall(response.encode())
-    return NotImplementedError
+
+    return True
 
 def subir_matricula(datos):
     # Obtengo las IP de las cámaras y las matrículas
@@ -96,6 +105,7 @@ def subir_matricula(datos):
             client_socket.sendall(response.encode())
             print(f"[RESPONSE] Enviando respuesta al cliente: {response}")
 
+    return NotImplementedError("Por implementar")
 
 def obtener_datos(request):
     # Separar los headers en una lista
@@ -119,11 +129,13 @@ def obtener_datos(request):
         client_socket.sendall(response.encode())
         print("[ERROR] Método no permitido")
 
-if __name__ == "__main__":
-    global user
-    global passwd
-    global puerto
+def signal_handler(sig, frame):
+    print("\n[SHUTDOWN] Cerrando el servidor...")
+    if server_socket:
+        server_socket.close()
+    sys.exit(0)
 
+if __name__ == "__main__":
     # Configurar argumentos de línea de comandos
     parser = argparse.ArgumentParser(description='Servidor HTTP')
     parser.add_argument('-u', '--usuario', required=True, help='Usuario')
@@ -134,42 +146,51 @@ if __name__ == "__main__":
     # Asignar los valores de usuario, contraseña y puerto
     user = args.usuario
     passwd = args.contraseña
-    puerto = args.puerto
+    PUERTO = args.puerto
 
     # Obtener el nombre de host y la IP local
     HOST = socket.getfqdn()
     IP_LOCAL = socket.gethostbyname_ex(HOST)[2][1]
 
-    # Configuración del servidor
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-        server_socket.bind((IP_LOCAL, puerto))
-        server_socket.listen()
+    # Configurar el manejador de señal para `Ctrl+C`
+    signal.signal(signal.SIGINT, signal_handler)
 
-        print(f"[SERVER STARTED] Servidor escuchando en {IP_LOCAL}:{puerto}")
-        
-        while True:
-            client_socket, client_address = server_socket.accept()
-            with client_socket:
-                print(f"[CONNECTION] Conexión establecida con: {client_address}")
+    while True:
+        try:
+            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            server_socket.bind((IP_LOCAL, PUERTO))
+            server_socket.listen(5)
+            print(f"[SERVER STARTED] Servidor escuchando en {IP_LOCAL}:{PUERTO}")
+            
+            while True:
+                try:
+                    client_socket, client_address = server_socket.accept()
+                    with client_socket:
+                        print(f"[CONNECTION] Conexión establecida con: {client_address}")
 
-                # Recibir la solicitud del cliente
-                request = client_socket.recv(2048).decode()
-                print(f"[REQUEST RECEIVED] [{client_address}] Contenido: {request}")
+                        # Recibir la solicitud del cliente
+                        request = client_socket.recv(2048).decode()
+                        print(f"[REQUEST RECEIVED] [{client_address}] Contenido: {request}")
 
-                # Determinar la acción a realizar según la solicitud
-                if request.split(" ")[1] == "/DeletePlate":
-                    datos = obtener_datos(request)
-                    borrar_matricula(datos)
+                        # Determinar la acción a realizar según la solicitud
+                        if request.split(" ")[1] == "/DeletePlate":
+                            datos = obtener_datos(request)
+                            borrar_matricula(datos)
+                        elif request.split(" ")[1] == "/AddPlate":
+                            datos = obtener_datos(request)
+                            if datos:
+                                subir_matricula(datos)
+                        else:
+                            response = 'HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nCuerpo de solicitud no encontrado'
+                            client_socket.sendall(response.encode())
+                            print("[ERROR] Cuerpo de solicitud no encontrado")
                 
-                elif request.split(" ")[1] == "/AddPlate":
-                    datos = obtener_datos(request)
-                    if datos:
-                        subir_matricula(datos)
-                
-                else:
-                    response = 'HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nCuerpo de solicitud no encontrado'
-                    client_socket.sendall(response.encode())
-                    print("[ERROR] Cuerpo de solicitud no encontrado")
-                    
-                #print("[CLOSE CONNECTION] Conexión cerrada con el cliente")
-                #break
+                except Exception as e:
+                    print(f"[ERROR] Error en la comunicación con el cliente: {e}")
+                    continue  # Continuar con el siguiente cliente en caso de error
+
+        except Exception as e:
+            print(f"[ERROR] Error en el servidor: {e}")
+            print("[RESTART] Reiniciando el servidor en 5 segundos...")
+            time.sleep(5)  # Esperar 5 segundos antes de intentar reiniciar el servidor
