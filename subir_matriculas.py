@@ -1,10 +1,62 @@
 import socket
 import requests
 from requests.auth import HTTPDigestAuth
+import xml.etree.ElementTree as ET
 import json
 import argparse
 
+def obtener_id_matricula(datos):
+    ids = []
+
+    ip_camaras = datos['camaras']
+    plates = datos['plates']
+
+    for ip_camara in ip_camaras:
+        for plate in plates:
+            xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+            <LPListAuditSearchDescription>
+                <searchID>7117D5B5-7DAC-4EF2-9869-D804DDAAE201</searchID>
+                <maxResults>20</maxResults>
+                <searchResultPosition>0</searchResultPosition>
+                <LicensePlate>{plate}</LicensePlate>
+            </LPListAuditSearchDescription>"""
+            
+            url = f"http://{ip_camara}/ISAPI/Traffic/channels/1/searchLPListAudit"
+            headers = {'Content-Type': 'application/xml'}
+
+            response = requests.post(url, data=xml, headers=headers, auth=HTTPDigestAuth(user, passwd))
+            
+            if response.status_code == 200:
+                print("[SUCCESS] Petición enviada exitosamente")
+            else:
+                print(f"[ERROR] Fallo en la petición: {response.status_code}")
+                continue  # Salta a la siguiente iteración si hay un error en la solicitud
+            
+            # Parsear el contenido XML de la respuesta
+            root = ET.fromstring(response.content)
+            for elem in root.findall('.//{http://www.hikvision.com/ver20/XMLSchema}id'):
+                ids.append(elem.text)
+    
+    return ids
+
+
 def borrar_matricula(datos):
+    ip_camaras = datos['camaras']
+    ids = obtener_id_matricula(datos)
+    for ip_camara in ip_camaras:
+        for id in ids:
+            estrucutra_json = {"id":[f"{id}"]}
+            url = f"http://{ip_camara}/ISAPI/Traffic/channels/1/DelLicensePlateAuditData?format=json"
+            headers = {'Content-Type': 'application/xml'}
+            response = requests.put(url, json=estrucutra_json, headers=headers, auth=HTTPDigestAuth(user, passwd))
+            if response.status_code == 200:
+                response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nMatricula eliminada \r'
+                print("[SUCCESS] Petición enviada exitosamente")
+            else:
+                response = f'HTTP/1.1 204 No Content\r\nContent-Type: text/plain\r\n\r\nMatricula no encontrada \r'
+                print(f"[ERROR] Fallo en la petición: {response.status_code}")
+                continue  # Salta a la siguiente iteración si hay un error en la solicitud
+            client_socket.sendall(response.encode())
     return NotImplementedError
 
 def subir_matricula(datos):
@@ -107,9 +159,8 @@ if __name__ == "__main__":
 
                 # Determinar la acción a realizar según la solicitud
                 if request.split(" ")[1] == "/DeletePlate":
-                    response = 'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nEliminar'
-                    client_socket.sendall(response.encode())
-                    print("[RESPONSE] Enviando respuesta: Eliminar")
+                    datos = obtener_datos(request)
+                    borrar_matricula(datos)
                 
                 elif request.split(" ")[1] == "/AddPlate":
                     datos = obtener_datos(request)
@@ -121,5 +172,5 @@ if __name__ == "__main__":
                     client_socket.sendall(response.encode())
                     print("[ERROR] Cuerpo de solicitud no encontrado")
                     
-                print("[CLOSE CONNECTION] Conexión cerrada con el cliente")
-                break
+                #print("[CLOSE CONNECTION] Conexión cerrada con el cliente")
+                #break
