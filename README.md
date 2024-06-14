@@ -34,7 +34,7 @@ Añadir una o más matrículas a la lista blanca.
           "192.168.1.10",
           "192.168.1.11"
         ],
-      "matriculas":
+      "plates":
         [
           "ABC123",
           "XYZ789"
@@ -55,14 +55,30 @@ Eliminar una o más matrículas de la lista blanca.
           "192.168.1.10",
           "192.168.1.11"
         ],
-      "matriculas":
+      "plates":
         [
           "ABC123",
           "XYZ789"
         ]
   }
   ```
-
+### /UpdatePlate
+  ```json
+  {
+      "camaras":
+        [
+          "192.168.1.10"
+        ],
+      "old plate":
+        [
+          "ABC123",
+        ],
+      "new plate":
+        [
+          "ABC124",
+        ],
+  }
+  ```
 ## Manejo de Señales
 
 El servidor maneja la señal SIGINT (Ctrl+C) para cerrarse limpiamente y liberar el socket.
