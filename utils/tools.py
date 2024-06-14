@@ -1,10 +1,15 @@
+import os
 import requests
 from requests.auth import HTTPDigestAuth
 from datetime import datetime
 import pandas as pd
+from logger import logger
 
 def descargar_backup(user, passwd, ip):
     path = "./backup/"
+    # Crear la carpeta si no existe
+    os.makedirs(path, exist_ok=True)
+    
     url = f"http://{ip}/ISAPI/Traffic/channels/1/licensePlateAuditData?fileType=csv"
     
     response = requests.get(url, auth=HTTPDigestAuth(user, passwd))
@@ -15,8 +20,12 @@ def descargar_backup(user, passwd, ip):
         with open(nombre_archivo, "wb") as file:
             file.write(response.content)
         print(f"[SUCCESS] Archivo CSV descargado exitosamente: {nombre_archivo}")
+        logger.info(f"[SUCCESS BACKUP] Archivo CSV descargado exitosamente: {nombre_archivo}")
+
     else:
         print(f"[ERROR] Fallo en la petición: {response.status_code}")
+        logger.critical(f"[ERROR] Fallo en la petición: {response.status_code}")
+
 
 def subir_backup(ip, user, passwd, path_backup):
     # Leer el archivo CSV
@@ -25,7 +34,7 @@ def subir_backup(ip, user, passwd, path_backup):
     
     # Obtener la fecha y hora actual en el formato deseado
     create_time = datetime.now().isoformat(timespec='seconds')  
-      
+
     # Iterar sobre cada fila del CSV
     for _, row in df.iterrows():
         id = row['No.']
@@ -58,8 +67,9 @@ def subir_backup(ip, user, passwd, path_backup):
         # Manejo de las respuestas de la solicitud
         if consulta.status_code == 200:
             print(f"[SUCCESS] Subida exitosa para {plate} en {ip}")
+            logger.info(f"[SUCCESS] Subida exitosa para {plate} en {ip}")
+
+            
         else:
             print(f"[ERROR] Fallo al subir {plate} en {ip}: {consulta.status_code}")
-
-
-subir_backup("lyralpr.dyndns.org:82",'admin','ganifox13','backup/license_plate_data_2024-06-14.csv')
+            logger.critical(f"[ERROR] Fallo al subir {plate} en {ip}: {consulta.status_code}")

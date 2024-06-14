@@ -1,6 +1,7 @@
 import socket
 import subprocess
 import requests
+from utils.logger import logger 
 
 # Lista de dependencias
 dependencies = ["requests"]
@@ -65,13 +66,17 @@ def modificar_matricula(datos):
                     if consulta.status_code == 200:
                         response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nModificando {old_plate} por {new_plate}\r'
                         print(f"[SUCCESS] Modificaion exitosa para {old_plate} a {new_plate} en {ip_camara}")
+                        logger.info(f"[SUCCESS] Modificaion exitosa para {old_plate} a {new_plate} en {ip_camara}")
                     else:
                         response = f'HTTP/1.1 417 Expectation Failed\r\nContent-Type: text/plain\r\n\r\nError al modificar {old_plate}'
                         print(f"[ERROR] Fallo al modificar {old_plate} en {ip_camara}: {consulta.status_code}")
+                        logger.critical(f"[ERROR] Fallo al modificar {old_plate} en {ip_camara}: {consulta.status_code}")
+
                     
                     # Envío la respuesta al cliente
                     client_socket.sendall(response.encode())
                     print(f"[RESPONSE] Enviando respuesta al cliente: {response}")
+                    logger.info(f"[RESPONSE] Enviando respuesta al cliente: {response}")
 
 def obtener_id_matricula(datos):
     ids = []
@@ -128,35 +133,48 @@ def obtener_id_matricula(datos):
             response = requests.post(url, data=xml, headers=headers, auth=HTTPDigestAuth(user, passwd))
             
             if response.status_code == 200:
+                response_client = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nDatos {plate}'
                 print("[SUCCESS] Petición enviada exitosamente")
+                logger.info(f"[SUCCESS] Peticion para obtener datos enviada exitosamente")
+
             else:
-                print(f"[ERROR] Fallo en la petición: {response.status_code}")
                 continue  # Salta a la siguiente iteración si hay un error en la solicitud
             
             # Parsear el contenido XML de la respuesta
             root = ET.fromstring(response.content)
             for elem in root.findall('.//{http://www.hikvision.com/ver20/XMLSchema}id'):
                 ids.append(elem.text)
-    
+            if not ids:
+                response_client = f'HTTP/1.1 417 Expectation Failed\r\nContent-Type: text/plain\r\n\r\nError al encontrar  {plate}'
+                print(f"[ERROR] Error al encontrar  {plate}")
+                logger.critical(f"[ERROR] Peticion para obtener datos fallo: {response.status_code}")
+
+    client_socket.sendall(response_client.encode())
     return ids
 
 def borrar_matricula(datos):
     ip_camaras = datos['camaras']
+    plates     = datos['plates']
     ids = obtener_id_matricula(datos)
     for ip_camara in ip_camaras:
-        for id in ids:
-            estrucutra_json = {"id":[f"{id}"]}
-            url = f"http://{ip_camara}/ISAPI/Traffic/channels/1/DelLicensePlateAuditData?format=json"
-            headers = {'Content-Type': 'application/xml'}
-            response = requests.put(url, json=estrucutra_json, headers=headers, auth=HTTPDigestAuth(user, passwd))
-            if response.status_code == 200:
-                response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nMatricula eliminada \r'
-                print("[SUCCESS] Petición enviada exitosamente")
-            else:
-                response = f'HTTP/1.1 204 No Content\r\nContent-Type: text/plain\r\n\r\nMatricula no encontrada \r'
-                print(f"[ERROR] Fallo en la petición: {response.status_code}")
-                continue  # Salta a la siguiente iteración si hay un error en la solicitud
-            client_socket.sendall(response.encode())
+        for plate in plates:
+            for id in ids:
+                estrucutra_json = {"id":[f"{id}"]}
+                url = f"http://{ip_camara}/ISAPI/Traffic/channels/1/DelLicensePlateAuditData?format=json"
+                headers = {'Content-Type': 'application/xml'}
+                response = requests.put(url, json=estrucutra_json, headers=headers, auth=HTTPDigestAuth(user, passwd))
+                if response.status_code == 200:
+                    response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nMatricula eliminada \r'
+                    print("[SUCCESS] Petición enviada exitosamente")
+                    logger.info(f"[DATA DELETED] Dato Eliminado: {ip_camaras} {plate}")
+
+                else:
+                    response = f'HTTP/1.1 204 No Content\r\nContent-Type: text/plain\r\n\r\nMatricula no encontrada \r'
+                    print(f"[ERROR] Fallo en la peticion: {response.status_code}")
+                    logger.info(f"[ERROR] Fallo en la peticion: {ip_camara} {plate}")
+
+                    continue  # Salta a la siguiente iteración si hay un error en la solicitud
+                client_socket.sendall(response.encode())
 
 
 def subir_matricula(datos):
@@ -188,14 +206,17 @@ def subir_matricula(datos):
             if consulta.status_code == 200:
                 response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nAgregando {plate}\r'
                 print(f"[SUCCESS] Subida exitosa para {plate} en {ip_camara}")
+                logger.info(f"[DATA UPLOAD] Datos Subidos: {ip_camaras} {plate}")
+
             else:
                 response = f'HTTP/1.1 417 Expectation Failed\r\nContent-Type: text/plain\r\n\r\nError al subir {plate}'
                 print(f"[ERROR] Fallo al subir {plate} en {ip_camara}: {consulta.status_code}")
+                logger.critical(f"[ERROR DATA UPLOAD] Fallo al subir {plate} en {ip_camara}: {consulta.status_code}")
             
             # Envío la respuesta al cliente
             client_socket.sendall(response.encode())
             print(f"[RESPONSE] Enviando respuesta al cliente: {response}")
-
+            logger.info(f"[RESPONSE] Enviando respuesta al cliente: {response}")
 
 def obtener_datos(request):
     # Separar los headers en una lista
@@ -209,6 +230,7 @@ def obtener_datos(request):
             body = request[idx + 4:]  # Obtener el cuerpo de la solicitud
             data_camaras = json.loads(body)  # Parsear el JSON
             print(f"[DATA RECEIVED] Datos recibidos: {data_camaras}")
+            logger.info(f"[DATA RECEIVED] Datos recibidos: {data_camaras}")
             return data_camaras
         else:
             response = 'HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nCuerpo de solicitud no encontrado'
@@ -221,6 +243,8 @@ def obtener_datos(request):
 
 def signal_handler(sig, frame):
     print("\n[SHUTDOWN] Cerrando el servidor...")
+    logger.info(f"[SHUTDOWN] Cerrando el servidor...")
+
     if server_socket:
         server_socket.close()
     sys.exit(0)
@@ -252,16 +276,19 @@ if __name__ == "__main__":
             server_socket.bind((IP_LOCAL, PUERTO))
             server_socket.listen(5)
             print(f"[SERVER STARTED] Servidor escuchando en {IP_LOCAL}:{PUERTO}")
+            logger.info(f"[SERVER STARTED] Servidor escuchando en {IP_LOCAL}:{PUERTO}")
             
             while True:
                 try:
                     client_socket, client_address = server_socket.accept()
                     with client_socket:
                         print(f"[CONNECTION] Conexión establecida con: {client_address}")
+                        logger.info(f"[CONNECTION] Conexion establecida con: {client_address}")
 
                         # Recibir la solicitud del cliente
                         request = client_socket.recv(2048).decode()
                         print(f"[REQUEST RECEIVED] [{client_address}] Contenido: {request}")
+                        logger.info(f"[REQUEST RECEIVED] [{client_address}] Contenido: {request}")
 
                         # Determinar la acción a realizar según la solicitud
                         if request.split(" ")[1] == "/DeletePlate":
@@ -278,12 +305,19 @@ if __name__ == "__main__":
                             response = 'HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nCuerpo de solicitud no encontrado'
                             client_socket.sendall(response.encode())
                             print("[ERROR] Cuerpo de solicitud no encontrado")
+                            logger.critical(f"[ERROR] Cuerpo de solicitud no encontrado")
                 
                 except Exception as e:
                     print(f"[ERROR] Error en la comunicación con el cliente: {e}")
+                    logger.critical(f"[ERROR] Error en la comunicacion con el cliente: {e}")
                     continue  # Continuar con el siguiente cliente en caso de error
 
         except Exception as e:
             print(f"[ERROR] Error en el servidor: {e}")
             print("[RESTART] Reiniciando el servidor en 5 segundos...")
+            logger.critical(f"[ERROR] Error en el servidor: {e}")
+            logger.critical(f"[RESTART] Reiniciando el servidor en 5 segundos...")
+
             time.sleep(5)  # Esperar 5 segundos antes de intentar reiniciar el servidor
+
+# TODO: Crear HeartBrate
