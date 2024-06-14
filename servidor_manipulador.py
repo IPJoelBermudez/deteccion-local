@@ -320,4 +320,3 @@ if __name__ == "__main__":
 
             time.sleep(5)  # Esperar 5 segundos antes de intentar reiniciar el servidor
 
-# TODO: Crear HeartBrate
