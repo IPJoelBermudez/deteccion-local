@@ -287,9 +287,3 @@ if __name__ == "__main__":
             print(f"[ERROR] Error en el servidor: {e}")
             print("[RESTART] Reiniciando el servidor en 5 segundos...")
             time.sleep(5)  # Esperar 5 segundos antes de intentar reiniciar el servidor
-
-# TODO: Pruebas de saturacion
-# TODO: Crear un backup
-# TODO: Testear borrar_matricula
-# TODO: Crear modificar
-# TODO: Crear HeartBrate
