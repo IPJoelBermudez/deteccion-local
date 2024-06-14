@@ -30,11 +30,87 @@ global passwd
 global PUERTO
 global server_socket
 
+
+def modificar_matricula(datos):
+    # Obtengo las IP de las cámaras y las matrículas
+    ip_camaras = datos['camaras']
+    new_plates = datos['new plate']
+    old_plates = datos['old plate']
+    ids    = obtener_id_matricula(datos)
+    for ip_camara in ip_camaras:
+        for new_plate in new_plates:
+            for old_plate in old_plates:
+                for id in ids:
+                    # Creo el JSON con la información de la matrícula
+                    json_matricula_actualizada  = {
+                        "LicensePlateInfoList": [
+                            {
+                                "LicensePlate": f"{new_plate}",
+                                "listType": "whiteList",
+                                "createTime": "2024-03-26T16:30:34",
+                                "effectiveStartDate": "2024-03-26",
+                                "effectiveTime": "5000-12-01",
+                                "id": f"{id}"
+                            }
+                        ]
+                    }
+                    # Hago la solicitud PUT para subir la matrícula
+                    consulta = requests.put(
+                        f"http://{ip_camara}/ISAPI/Traffic/channels/1/licensePlateAuditData/record?format=json",
+                        json=json_matricula_actualizada,
+                        auth=HTTPDigestAuth(user, passwd)
+                    )
+                    
+                    # Manejo las respuestas de la solicitud
+                    if consulta.status_code == 200:
+                        response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nModificando {old_plate} por {new_plate}\r'
+                        print(f"[SUCCESS] Modificaion exitosa para {old_plate} a {new_plate} en {ip_camara}")
+                    else:
+                        response = f'HTTP/1.1 417 Expectation Failed\r\nContent-Type: text/plain\r\n\r\nError al modificar {old_plate}'
+                        print(f"[ERROR] Fallo al modificar {old_plate} en {ip_camara}: {consulta.status_code}")
+                    
+                    # Envío la respuesta al cliente
+                    client_socket.sendall(response.encode())
+                    print(f"[RESPONSE] Enviando respuesta al cliente: {response}")
+
 def obtener_id_matricula(datos):
     ids = []
 
     ip_camaras = datos['camaras']
-    plates = datos['plates']
+
+
+    # Agregar / Eliminar
+    '''
+    {
+    "camaras": [
+        "127.0.0.1"
+    ],
+    "plates": [
+        "ABB137"
+    ]
+    }
+    '''
+
+    # Actualizar
+    '''{
+        "camaras": 
+            [
+            "127.0.0.1"
+        ],
+        "old plate": [
+            "ABB137"
+        ],
+        "new plate": [
+            "ABB138"
+        ]
+    }   
+    '''
+    # Como el cuerpo de la solicitud es diferente cuando se va a modificar la matricula
+    # lo adapto para que funcione
+    if 'plates' in datos and datos['plates']:
+        plates = datos['plates']
+    else:
+        plates = datos['old plate']
 
     for ip_camara in ip_camaras:
         for plate in plates:
@@ -82,7 +158,6 @@ def borrar_matricula(datos):
                 continue  # Salta a la siguiente iteración si hay un error en la solicitud
             client_socket.sendall(response.encode())
 
-    return True
 
 def subir_matricula(datos):
     # Obtengo las IP de las cámaras y las matrículas
@@ -121,7 +196,6 @@ def subir_matricula(datos):
             client_socket.sendall(response.encode())
             print(f"[RESPONSE] Enviando respuesta al cliente: {response}")
 
-    return NotImplementedError("Por implementar")
 
 def obtener_datos(request):
     # Separar los headers en una lista
@@ -193,6 +267,9 @@ if __name__ == "__main__":
                         if request.split(" ")[1] == "/DeletePlate":
                             datos = obtener_datos(request)
                             borrar_matricula(datos)
+                        elif request.split(" ")[1] == "/UpdatePlate":
+                            datos = obtener_datos(request)
+                            modificar_matricula(datos)
                         elif request.split(" ")[1] == "/AddPlate":
                             datos = obtener_datos(request)
                             if datos:
@@ -210,3 +287,9 @@ if __name__ == "__main__":
             print(f"[ERROR] Error en el servidor: {e}")
             print("[RESTART] Reiniciando el servidor en 5 segundos...")
             time.sleep(5)  # Esperar 5 segundos antes de intentar reiniciar el servidor
+
+# TODO: Pruebas de saturacion
+# TODO: Crear un backup
+# TODO: Testear borrar_matricula
+# TODO: Crear modificar
+# TODO: Crear HeartBrate
