@@ -63,6 +63,10 @@ Eliminar una o más matrículas de la lista blanca.
   }
   ```
 ### /UpdatePlate
+  Modificar una o más matrículas de la lista blanca.
+
+  - Método: POST
+  - Cuerpo de la solicitud: JSON con las IP de las cámaras y las matrículas a modificar.
   ```json
   {
       "camaras":
