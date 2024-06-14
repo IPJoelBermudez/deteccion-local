@@ -96,6 +96,17 @@ El servidor maneja la señal SIGINT (Ctrl+C) para cerrarse limpiamente y liberar
 - `obtener_datos`: Función para parsear los datos recibidos en la solicitud HTTP.
 - `signal_handler`: Función para manejar la señal SIGINT y cerrar el servidor limpiamente.
 
+## Backup
+Para realizar un backup de los datos de matrículas en un dispositivo usando el script que proporcionaste, necesitas ejecutar el script descargar_backup con los siguientes parámetros:
+
+- `-u user:` Nombre de usuario para autenticación en el dispositivo.
+- `-p passwd`: Contraseña para autenticación en el dispositivo.
+- `-i ip`: Dirección IP del dispositivo.
+- `-b backup_path`: Ruta donde se va a guardar el backup.
+```sh
+python backup_maker.py -u admin -c password -i 192.168.1.10 -b /ruta/backup
+```
+
 ## Nota
 
 Este script está diseñado para funcionar con cámaras específicas que soportan el protocolo ISAPI de Hikvision. Asegúrese de que sus cámaras sean compatibles y estén configuradas correctamente.
