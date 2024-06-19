@@ -113,28 +113,35 @@ def obtener_id_matricula(datos):
             url = f"http://{ip_camara}/ISAPI/Traffic/channels/1/searchLPListAudit"
             headers = {'Content-Type': 'application/xml'}
 
-            response = requests.post(url, 
-                                     data=xml, 
-                                     headers=headers, 
-                                     auth=HTTPDigestAuth(user, passwd),
-                                     timeout=5)
-            
-            if response.status_code == 200:
-                response_client = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOk'
-                print("[SUCCESS] Petición enviada exitosamente")
-                logger.info(f"[SUCCESS] Peticion para obtener datos enviada exitosamente")
+            try:
+                response = requests.post(url, 
+                                        data=xml, 
+                                        headers=headers, 
+                                        auth=HTTPDigestAuth(user, passwd),
+                                        timeout=5)
+                
+                if response.status_code == 200:
+                    response_client = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOk'
+                    print("[SUCCESS] Petición enviada exitosamente")
+                    logger.info(f"[SUCCESS] Peticion para obtener datos enviada exitosamente")
 
-            else:
-                continue  # Salta a la siguiente iteración si hay un error en la solicitud
+                else:
+                    continue  # Salta a la siguiente iteración si hay un error en la solicitud
+                
+                # Parsear el contenido XML de la respuesta
+                root = ET.fromstring(response.content)
+                for elem in root.findall('.//{http://www.hikvision.com/ver20/XMLSchema}id'):
+                    ids.append(elem.text)
+                if not ids:
+                    response_client = f'HTTP/1.1 417 Expectation Failed\r\nContent-Type: text/plain\r\n\r\nError al encontrar  {plate}'
+                    print(f"[ERROR] Error al encontrar  {plate}")
+                    logger.critical(f"[ERROR] Peticion para obtener datos fallo: {response.status_code}")
             
-            # Parsear el contenido XML de la respuesta
-            root = ET.fromstring(response.content)
-            for elem in root.findall('.//{http://www.hikvision.com/ver20/XMLSchema}id'):
-                ids.append(elem.text)
-            if not ids:
-                response_client = f'HTTP/1.1 417 Expectation Failed\r\nContent-Type: text/plain\r\n\r\nError al encontrar  {plate}'
-                print(f"[ERROR] Error al encontrar  {plate}")
-                logger.critical(f"[ERROR] Peticion para obtener datos fallo: {response.status_code}")
+            except  requests.exceptions.Timeout:
+                response = f'HTTP/1.1 408 Request Timeout\r\nContent-Type: text/plain\r\n\r\nSin respuesta del cliente {ip_camara}'
+                print(f"[ERROR] El cliente {ip_camara} demoro en responder: {response.status_code}")
+                logger.critical(f"[ERROR] El cliente {ip_camara} demoro en responder: {response.status_code}")
+
 
     client_socket.sendall(response_client.encode())
     return ids
@@ -149,23 +156,30 @@ def borrar_matricula(datos):
                 estrucutra_json = {"id":[f"{id}"]}
                 url = f"http://{ip_camara}/ISAPI/Traffic/channels/1/DelLicensePlateAuditData?format=json"
                 headers = {'Content-Type': 'application/xml'}
-                response = requests.put(url, 
-                                        json=estrucutra_json, 
-                                        headers=headers, 
-                                        auth=HTTPDigestAuth(user, passwd),
-                                        timeout=5)
-                if response.status_code == 200:
-                    response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOk\r'
-                    print("[SUCCESS] Petición enviada exitosamente")
-                    logger.info(f"[DATA DELETED] Dato Eliminado: {ip_camaras} {plate}")
+                try:
+                    response = requests.put(url, 
+                                            json=estrucutra_json, 
+                                            headers=headers, 
+                                            auth=HTTPDigestAuth(user, passwd),
+                                            timeout=5)
+                    if response.status_code == 200:
+                        response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOk\r'
+                        print("[SUCCESS] Petición enviada exitosamente")
+                        logger.info(f"[DATA DELETED] Dato Eliminado: {ip_camaras} {plate}")
 
-                else:
-                    response = f'HTTP/1.1 204 No Content\r\nContent-Type: text/plain\r\n\r\nMatricula no encontrada \r'
-                    print(f"[ERROR] Fallo en la peticion: {response.status_code}")
-                    logger.info(f"[ERROR] Fallo en la peticion: {ip_camara} {plate}")
+                    else:
+                        response = f'HTTP/1.1 204 No Content\r\nContent-Type: text/plain\r\n\r\nMatricula no encontrada \r'
+                        print(f"[ERROR] Fallo en la peticion: {response.status_code}")
+                        logger.info(f"[ERROR] Fallo en la peticion: {ip_camara} {plate}")
 
-                    continue  # Salta a la siguiente iteración si hay un error en la solicitud
-                client_socket.sendall(response.encode())
+                        continue  # Salta a la siguiente iteración si hay un error en la solicitud
+                    client_socket.sendall(response.encode())
+                
+                except  requests.exceptions.Timeout:
+                    response = f'HTTP/1.1 408 Request Timeout\r\nContent-Type: text/plain\r\n\r\nSin respuesta del cliente {ip_camara}'
+                    print(f"[ERROR] El cliente {ip_camara} demoro en responder: {response.status_code}")
+                    logger.critical(f"[ERROR] El cliente {ip_camara} demoro en responder: {response.status_code}")
+
 
 def subir_matricula(datos):
     # Obtengo las IP de las cámaras y las matrículas
@@ -186,28 +200,35 @@ def subir_matricula(datos):
                 }]
             }
             # Hago la solicitud PUT para subir la matrícula
-            consulta = requests.put(
-                f"http://{ip_camara}/ISAPI/Traffic/channels/1/licensePlateAuditData/record?format=json",
-                json=json_matricula_subida,
-                auth=HTTPDigestAuth(user, passwd),
-                timeout=5
-            )
-            
-            # Manejo las respuestas de la solicitud
-            if consulta.status_code == 200:
-                response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOk\r'
-                print(f"[SUCCESS] Subida exitosa para {plate} en {ip_camara}")
-                logger.info(f"[DATA UPLOAD] Datos Subidos: {ip_camaras} {plate}")
+            try:
+                consulta = requests.put(
+                    f"http://{ip_camara}/ISAPI/Traffic/channels/1/licensePlateAuditData/record?format=json",
+                    json=json_matricula_subida,
+                    auth=HTTPDigestAuth(user, passwd),
+                    timeout=5
+                )
+                
+                # Manejo las respuestas de la solicitud
+                if consulta.status_code == 200:
+                    response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOk\r'
+                    print(f"[SUCCESS] Subida exitosa para {plate} en {ip_camara}")
+                    logger.info(f"[DATA UPLOAD] Datos Subidos: {ip_camaras} {plate}")
 
-            else:
-                response = f'HTTP/1.1 417 Expectation Failed\r\nContent-Type: text/plain\r\n\r\nError al subir {plate}'
-                print(f"[ERROR] Fallo al subir {plate} en {ip_camara}: {consulta.status_code}")
-                logger.critical(f"[ERROR DATA UPLOAD] Fallo al subir {plate} en {ip_camara}: {consulta.status_code}")
-            
-            # Envío la respuesta al cliente
-            client_socket.sendall(response.encode())
-            print(f"[RESPONSE] Enviando respuesta al cliente: {response}")
-            logger.info(f"[RESPONSE] Enviando respuesta al cliente: {response}")
+                else:
+                    response = f'HTTP/1.1 417 Expectation Failed\r\nContent-Type: text/plain\r\n\r\nError al subir {plate}'
+                    print(f"[ERROR] Fallo al subir {plate} en {ip_camara}: {consulta.status_code}")
+                    logger.critical(f"[ERROR DATA UPLOAD] Fallo al subir {plate} en {ip_camara}: {consulta.status_code}")
+                
+                # Envío la respuesta al cliente
+                client_socket.sendall(response.encode())
+                print(f"[RESPONSE] Enviando respuesta al cliente: {response}")
+                logger.info(f"[RESPONSE] Enviando respuesta al cliente: {response}")
+        
+            except requests.exceptions.Timeout:
+                response = f'HTTP/1.1 408 Request Timeout\r\nContent-Type: text/plain\r\n\r\nSin respuesta del cliente {ip_camara}'
+                print(f"[ERROR] El cliente {ip_camara} demoro en responder: {response.status_code}")
+                logger.critical(f"[ERROR] El cliente {ip_camara} demoro en responder: {response.status_code}")
+
 
 def obtener_datos(request):
     # Separar los headers en una lista
