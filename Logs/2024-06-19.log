@@ -1,0 +1,204 @@
+[2024-06-19 : 11:14:59] [SERVER STARTED] Servidor escuchando en 192.168.168.103:8080
+[2024-06-19 : 11:16:32] [CONNECTION] Conexion establecida con: ('192.168.168.103', 56473)
+[2024-06-19 : 11:16:32] [REQUEST RECEIVED] [('192.168.168.103', 56473)] Contenido: POST /DeletePlate HTTP/1.1
+Content-Type: application/json
+User-Agent: PostmanRuntime/7.39.0
+Accept: */*
+Postman-Token: 44548f2f-d0bc-4a00-84ab-8ecb0593e07d
+Host: 192.168.168.103:8080
+Accept-Encoding: gzip, deflate, br
+Connection: keep-alive
+Content-Length: 89
+
+{
+  "camaras": [
+    "lyralpr.dyndns.org:82"
+  ],
+  "plates": [
+    "ABB139"
+  ]
+}
+[2024-06-19 : 11:16:32] [DATA RECEIVED] Datos recibidos: {'camaras': ['lyralpr.dyndns.org:82'], 'plates': ['ABB139']}
+[2024-06-19 : 11:16:32] [ERROR] Error en la comunicacion con el cliente: cannot access local variable 'response_client' where it is not associated with a value
+[2024-06-19 : 11:17:11] [CONNECTION] Conexion establecida con: ('192.168.168.103', 56485)
+[2024-06-19 : 11:17:11] [REQUEST RECEIVED] [('192.168.168.103', 56485)] Contenido: POST /AddPlate HTTP/1.1
+Content-Type: application/json
+User-Agent: PostmanRuntime/7.39.0
+Accept: */*
+Postman-Token: ae921aa6-067f-4eb1-a5ce-fc3c2aa23729
+Host: 192.168.168.103:8080
+Accept-Encoding: gzip, deflate, br
+Connection: keep-alive
+Content-Length: 89
+
+{
+  "camaras": [
+    "lyralpr.dyndns.org:82"
+  ],
+  "plates": [
+    "ABB139"
+  ]
+}
+[2024-06-19 : 11:17:11] [DATA RECEIVED] Datos recibidos: {'camaras': ['lyralpr.dyndns.org:82'], 'plates': ['ABB139']}
+[2024-06-19 : 11:17:11] [ERROR DATA UPLOAD] Fallo al subir ABB139 en lyralpr.dyndns.org:82: 401
+[2024-06-19 : 11:17:11] [RESPONSE] Enviando respuesta al cliente: HTTP/1.1 417 Expectation Failed
+Content-Type: text/plain
+
+Error al subir ABB139
+[2024-06-19 : 11:17:22] [CONNECTION] Conexion establecida con: ('192.168.168.103', 56491)
+[2024-06-19 : 11:17:22] [REQUEST RECEIVED] [('192.168.168.103', 56491)] Contenido: POST /AddPlate HTTP/1.1
+Content-Type: application/json
+User-Agent: PostmanRuntime/7.39.0
+Accept: */*
+Postman-Token: 0a2200f1-5263-4efb-8798-ada79a2aa4bd
+Host: 192.168.168.103:8080
+Accept-Encoding: gzip, deflate, br
+Connection: keep-alive
+Content-Length: 90
+
+{
+  "camaras": [
+    "lyralpr.dyndns.org:82"
+  ],
+  "plates": [
+    "ABB1339"
+  ]
+}
+[2024-06-19 : 11:17:22] [DATA RECEIVED] Datos recibidos: {'camaras': ['lyralpr.dyndns.org:82'], 'plates': ['ABB1339']}
+[2024-06-19 : 11:17:23] [ERROR DATA UPLOAD] Fallo al subir ABB1339 en lyralpr.dyndns.org:82: 401
+[2024-06-19 : 11:17:23] [RESPONSE] Enviando respuesta al cliente: HTTP/1.1 417 Expectation Failed
+Content-Type: text/plain
+
+Error al subir ABB1339
+[2024-06-19 : 11:19:04] [SHUTDOWN] Cerrando el servidor...
+[2024-06-19 : 11:19:16] [SERVER STARTED] Servidor escuchando en 192.168.168.103:8080
+[2024-06-19 : 11:19:19] [CONNECTION] Conexion establecida con: ('192.168.168.103', 56579)
+[2024-06-19 : 11:19:19] [REQUEST RECEIVED] [('192.168.168.103', 56579)] Contenido: POST /AddPlate HTTP/1.1
+Content-Type: application/json
+User-Agent: PostmanRuntime/7.39.0
+Accept: */*
+Postman-Token: 9c1c3954-b863-4d95-888b-16ad3815b963
+Host: 192.168.168.103:8080
+Accept-Encoding: gzip, deflate, br
+Connection: keep-alive
+Content-Length: 90
+
+{
+  "camaras": [
+    "lyralpr.dyndns.org:82"
+  ],
+  "plates": [
+    "ABB1339"
+  ]
+}
+[2024-06-19 : 11:19:19] [DATA RECEIVED] Datos recibidos: {'camaras': ['lyralpr.dyndns.org:82'], 'plates': ['ABB1339']}
+[2024-06-19 : 11:19:20] [DATA UPLOAD] Datos Subidos: ['lyralpr.dyndns.org:82'] ABB1339
+[2024-06-19 : 11:19:20] [RESPONSE] Enviando respuesta al cliente: HTTP/1.1 200 OK
+Content-Type: text/plain
+
+Agregando ABB1339
+[2024-06-19 : 11:20:04] [CONNECTION] Conexion establecida con: ('192.168.168.103', 56622)
+[2024-06-19 : 11:20:04] [REQUEST RECEIVED] [('192.168.168.103', 56622)] Contenido: POST /AddPlate HTTP/1.1
+Content-Type: application/json
+User-Agent: PostmanRuntime/7.39.0
+Accept: */*
+Postman-Token: 5a6bc301-8443-4889-8e15-2c63d2609abe
+Host: 192.168.168.103:8080
+Accept-Encoding: gzip, deflate, br
+Connection: keep-alive
+Content-Length: 91
+
+{
+  "camaras": [
+    "lyralpr.dyndns.org3:82"
+  ],
+  "plates": [
+    "ABB1339"
+  ]
+}
+[2024-06-19 : 11:20:04] [DATA RECEIVED] Datos recibidos: {'camaras': ['lyralpr.dyndns.org3:82'], 'plates': ['ABB1339']}
+[2024-06-19 : 11:20:04] [ERROR] Error en la comunicacion con el cliente: HTTPConnectionPool(host='lyralpr.dyndns.org3', port=82): Max retries exceeded with url: /ISAPI/Traffic/channels/1/licensePlateAuditData/record?format=json (Caused by NameResolutionError("<urllib3.connection.HTTPConnection object at 0x0000022BB28DBC20>: Failed to resolve 'lyralpr.dyndns.org3' ([Errno 11001] getaddrinfo failed)"))
+[2024-06-19 : 11:20:39] [CONNECTION] Conexion establecida con: ('192.168.168.103', 56633)
+[2024-06-19 : 11:20:39] [REQUEST RECEIVED] [('192.168.168.103', 56633)] Contenido: POST /AddPlate HTTP/1.1
+Content-Type: application/json
+User-Agent: PostmanRuntime/7.39.0
+Accept: */*
+Postman-Token: 13cba70f-9c0f-4479-a419-18cfc19e5f8d
+Host: 192.168.168.103:8080
+Accept-Encoding: gzip, deflate, br
+Connection: keep-alive
+Content-Length: 91
+
+{
+  "camaras": [
+    "lyralpr3.dyndns.org:82"
+  ],
+  "plates": [
+    "ABB1339"
+  ]
+}
+[2024-06-19 : 11:20:39] [DATA RECEIVED] Datos recibidos: {'camaras': ['lyralpr3.dyndns.org:82'], 'plates': ['ABB1339']}
+[2024-06-19 : 11:20:39] [ERROR] Error en la comunicacion con el cliente: HTTPConnectionPool(host='lyralpr3.dyndns.org', port=82): Max retries exceeded with url: /ISAPI/Traffic/channels/1/licensePlateAuditData/record?format=json (Caused by NameResolutionError("<urllib3.connection.HTTPConnection object at 0x0000022BB28DBE90>: Failed to resolve 'lyralpr3.dyndns.org' ([Errno 11001] getaddrinfo failed)"))
+[2024-06-19 : 11:20:57] [CONNECTION] Conexion establecida con: ('192.168.168.103', 56638)
+[2024-06-19 : 11:20:57] [REQUEST RECEIVED] [('192.168.168.103', 56638)] Contenido: POST /AddPlate HTTP/1.1
+Content-Type: application/json
+User-Agent: PostmanRuntime/7.39.0
+Accept: */*
+Postman-Token: 04ce06c6-5da3-481c-a759-cf1ade2f9764
+Host: 192.168.168.103:8080
+Accept-Encoding: gzip, deflate, br
+Connection: keep-alive
+Content-Length: 84
+
+{
+  "camaras": [
+    "192.168.168.103"
+  ],
+  "plates": [
+    "ABB1339"
+  ]
+}
+[2024-06-19 : 11:20:57] [DATA RECEIVED] Datos recibidos: {'camaras': ['192.168.168.103'], 'plates': ['ABB1339']}
+[2024-06-19 : 11:20:59] [ERROR] Error en la comunicacion con el cliente: HTTPConnectionPool(host='192.168.168.103', port=80): Max retries exceeded with url: /ISAPI/Traffic/channels/1/licensePlateAuditData/record?format=json (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000022BB3138770>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))
+[2024-06-19 : 11:21:06] [CONNECTION] Conexion establecida con: ('192.168.168.103', 56642)
+[2024-06-19 : 11:21:06] [REQUEST RECEIVED] [('192.168.168.103', 56642)] Contenido: POST /AddPlate HTTP/1.1
+Content-Type: application/json
+User-Agent: PostmanRuntime/7.39.0
+Accept: */*
+Postman-Token: 94cd9768-538b-49e5-99b4-f1c4b728fb42
+Host: 192.168.168.103:8080
+Accept-Encoding: gzip, deflate, br
+Connection: keep-alive
+Content-Length: 84
+
+{
+  "camaras": [
+    "192.168.168.103"
+  ],
+  "plates": [
+    "ABB1339"
+  ]
+}
+[2024-06-19 : 11:21:06] [DATA RECEIVED] Datos recibidos: {'camaras': ['192.168.168.103'], 'plates': ['ABB1339']}
+[2024-06-19 : 11:21:08] [ERROR] Error en la comunicacion con el cliente: HTTPConnectionPool(host='192.168.168.103', port=80): Max retries exceeded with url: /ISAPI/Traffic/channels/1/licensePlateAuditData/record?format=json (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000022BB3139010>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))
+[2024-06-19 : 11:21:19] [CONNECTION] Conexion establecida con: ('192.168.168.103', 56645)
+[2024-06-19 : 11:21:19] [REQUEST RECEIVED] [('192.168.168.103', 56645)] Contenido: POST /AddPlate HTTP/1.1
+Content-Type: application/json
+User-Agent: PostmanRuntime/7.39.0
+Accept: */*
+Postman-Token: 1c0cd5cd-d448-433f-b1b6-211a1774f9ec
+Host: 192.168.168.103:8080
+Accept-Encoding: gzip, deflate, br
+Connection: keep-alive
+Content-Length: 84
+
+{
+  "camaras": [
+    "192.168.168.104"
+  ],
+  "plates": [
+    "ABB1339"
+  ]
+}
+[2024-06-19 : 11:21:19] [DATA RECEIVED] Datos recibidos: {'camaras': ['192.168.168.104'], 'plates': ['ABB1339']}
+[2024-06-19 : 11:21:21] [ERROR] Error en la comunicacion con el cliente: HTTPConnectionPool(host='192.168.168.104', port=80): Max retries exceeded with url: /ISAPI/Traffic/channels/1/licensePlateAuditData/record?format=json (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000022BB28DBF50>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))
