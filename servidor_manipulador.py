@@ -31,6 +31,8 @@ global passwd
 global PUERTO
 global server_socket
 
+def subir_estadias(datos):
+    return NotImplementedError('Por implementar')
 
 def modificar_matricula(datos):
     # Obtengo las IP de las cámaras y las matrículas
@@ -56,60 +58,41 @@ def modificar_matricula(datos):
                         ]
                     }
                     # Hago la solicitud PUT para subir la matrícula
-                    consulta = requests.put(
-                        f"http://{ip_camara}/ISAPI/Traffic/channels/1/licensePlateAuditData/record?format=json",
-                        json=json_matricula_actualizada,
-                        auth=HTTPDigestAuth(user, passwd)
-                    )
-                    
-                    # Manejo las respuestas de la solicitud
-                    if consulta.status_code == 200:
-                        response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nModificando {old_plate} por {new_plate}\r'
-                        print(f"[SUCCESS] Modificaion exitosa para {old_plate} a {new_plate} en {ip_camara}")
-                        logger.info(f"[SUCCESS] Modificaion exitosa para {old_plate} a {new_plate} en {ip_camara}")
-                    else:
-                        response = f'HTTP/1.1 417 Expectation Failed\r\nContent-Type: text/plain\r\n\r\nError al modificar {old_plate}'
-                        print(f"[ERROR] Fallo al modificar {old_plate} en {ip_camara}: {consulta.status_code}")
-                        logger.critical(f"[ERROR] Fallo al modificar {old_plate} en {ip_camara}: {consulta.status_code}")
+                    try:
+                        consulta = requests.put(
+                            f"http://{ip_camara}/ISAPI/Traffic/channels/1/licensePlateAuditData/record?format=json",
+                            json=json_matricula_actualizada,
+                            auth=HTTPDigestAuth(user, passwd),
+                            timeout=5
+                        )
+                        
+                        # Manejo las respuestas de la solicitud
+                        if consulta.status_code == 200:
+                            response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOk\r'
+                            print(f"[SUCCESS] Modificaion exitosa para {old_plate} a {new_plate} en {ip_camara}")
+                            logger.info(f"[SUCCESS] Modificaion exitosa para {old_plate} a {new_plate} en {ip_camara}")
+                        else:
+                            response = f'HTTP/1.1 417 Expectation Failed\r\nContent-Type: text/plain\r\n\r\nError al modificar {old_plate}'
+                            print(f"[ERROR] Fallo al modificar {old_plate} en {ip_camara}: {consulta.status_code}")
+                            logger.critical(f"[ERROR] Fallo al modificar {old_plate} en {ip_camara}: {consulta.status_code}")
 
-                    
-                    # Envío la respuesta al cliente
-                    client_socket.sendall(response.encode())
-                    print(f"[RESPONSE] Enviando respuesta al cliente: {response}")
-                    logger.info(f"[RESPONSE] Enviando respuesta al cliente: {response}")
+                        
+                        # Envío la respuesta al cliente
+                        client_socket.sendall(response.encode())
+                        print(f"[RESPONSE] Enviando respuesta al cliente: {response}")
+                        logger.info(f"[RESPONSE] Enviando respuesta al cliente: {response}")
+
+                    except  requests.exceptions.Timeout:
+                        response = f'HTTP/1.1 408 Request Timeout\r\nContent-Type: text/plain\r\n\r\nSin respuesta del cliente {ip_camara}'
+                        print(f"[ERROR] El cliente {ip_camara} demoro en responder: {consulta.status_code}")
+                        logger.critical(f"[ERROR] El cliente {ip_camara} demoro en responder: {consulta.status_code}")
+
 
 def obtener_id_matricula(datos):
     ids = []
 
     ip_camaras = datos['camaras']
 
-
-    # Agregar / Eliminar
-    '''
-    {
-    "camaras": [
-        "127.0.0.1"
-    ],
-    "plates": [
-        "ABB137"
-    ]
-    }
-    '''
-
-    # Actualizar
-    '''{
-        "camaras": 
-            [
-            "127.0.0.1"
-        ],
-        "old plate": [
-            "ABB137"
-        ],
-        "new plate": [
-            "ABB138"
-        ]
-    }   
-    '''
     # Como el cuerpo de la solicitud es diferente cuando se va a modificar la matricula
     # lo adapto para que funcione
     if 'plates' in datos and datos['plates']:
@@ -130,10 +113,14 @@ def obtener_id_matricula(datos):
             url = f"http://{ip_camara}/ISAPI/Traffic/channels/1/searchLPListAudit"
             headers = {'Content-Type': 'application/xml'}
 
-            response = requests.post(url, data=xml, headers=headers, auth=HTTPDigestAuth(user, passwd))
+            response = requests.post(url, 
+                                     data=xml, 
+                                     headers=headers, 
+                                     auth=HTTPDigestAuth(user, passwd),
+                                     timeout=5)
             
             if response.status_code == 200:
-                response_client = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nDatos {plate}'
+                response_client = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOk'
                 print("[SUCCESS] Petición enviada exitosamente")
                 logger.info(f"[SUCCESS] Peticion para obtener datos enviada exitosamente")
 
@@ -162,9 +149,13 @@ def borrar_matricula(datos):
                 estrucutra_json = {"id":[f"{id}"]}
                 url = f"http://{ip_camara}/ISAPI/Traffic/channels/1/DelLicensePlateAuditData?format=json"
                 headers = {'Content-Type': 'application/xml'}
-                response = requests.put(url, json=estrucutra_json, headers=headers, auth=HTTPDigestAuth(user, passwd))
+                response = requests.put(url, 
+                                        json=estrucutra_json, 
+                                        headers=headers, 
+                                        auth=HTTPDigestAuth(user, passwd),
+                                        timeout=5)
                 if response.status_code == 200:
-                    response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nMatricula eliminada \r'
+                    response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOk\r'
                     print("[SUCCESS] Petición enviada exitosamente")
                     logger.info(f"[DATA DELETED] Dato Eliminado: {ip_camaras} {plate}")
 
@@ -175,7 +166,6 @@ def borrar_matricula(datos):
 
                     continue  # Salta a la siguiente iteración si hay un error en la solicitud
                 client_socket.sendall(response.encode())
-
 
 def subir_matricula(datos):
     # Obtengo las IP de las cámaras y las matrículas
@@ -199,12 +189,13 @@ def subir_matricula(datos):
             consulta = requests.put(
                 f"http://{ip_camara}/ISAPI/Traffic/channels/1/licensePlateAuditData/record?format=json",
                 json=json_matricula_subida,
-                auth=HTTPDigestAuth(user, passwd)
+                auth=HTTPDigestAuth(user, passwd),
+                timeout=5
             )
             
             # Manejo las respuestas de la solicitud
             if consulta.status_code == 200:
-                response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nAgregando {plate}\r'
+                response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOk\r'
                 print(f"[SUCCESS] Subida exitosa para {plate} en {ip_camara}")
                 logger.info(f"[DATA UPLOAD] Datos Subidos: {ip_camaras} {plate}")
 
