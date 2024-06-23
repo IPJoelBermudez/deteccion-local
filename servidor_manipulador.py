@@ -2,21 +2,6 @@ import socket
 import subprocess
 import requests
 from utils.logger import logger 
-
-# Lista de dependencias
-dependencies = ["requests"]
-
-# Función para instalar las dependencias usando pip
-def install_dependencies(packages):
-    for package in packages:
-        try:
-            __import__(package)
-        except ImportError:
-            print(f"[INSTALLING] Instalando {package}...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-
-# Instalar las dependencias
-install_dependencies(dependencies)
 from requests.auth import HTTPDigestAuth
 import xml.etree.ElementTree as ET
 import json
@@ -25,39 +10,56 @@ import time
 import signal
 import sys
 
+# Lista de dependencias
+dependencies = ["requests"]
+
+def install_dependencies(packages):
+    """Instala las dependencias usando pip"""
+    import pip
+    for package in packages:
+        try:
+            __import__(package)
+        except ImportError:
+            print(f"[INSTALLING] Instalando {package}...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+install_dependencies(dependencies)
+
 # Variables globales para el usuario, la contraseña y el puerto
-global user
-global passwd
-global PUERTO
-global server_socket
+user = None
+passwd = None
+PUERTO = None
+server_socket = None
+
+def enviar_respuesta(client_socket, status_code, message):
+    response = f'HTTP/1.1 {status_code}\r\nContent-Type: text/plain\r\n\r\n{message}'
+    client_socket.sendall(response.encode())
+    logger.info(f"[RESPONSE] Enviando respuesta: {response}")
 
 def subir_estadias(datos):
-    return NotImplementedError('Por implementar')
+    raise NotImplementedError('Por implementar')
 
 def modificar_matricula(datos):
-    # Obtengo las IP de las cámaras y las matrículas
     ip_camaras = datos['camaras']
     new_plates = datos['new plate']
     old_plates = datos['old plate']
-    ids    = obtener_id_matricula(datos)
+    ids = obtener_id_matricula(datos)
     for ip_camara in ip_camaras:
         for new_plate in new_plates:
             for old_plate in old_plates:
                 for id in ids:
-                    # Creo el JSON con la información de la matrícula
                     json_matricula_actualizada  = {
                         "LicensePlateInfoList": [
                             {
-                                "LicensePlate": f"{new_plate}",
+                                "LicensePlate": new_plate,
                                 "listType": "whiteList",
                                 "createTime": "2024-03-26T16:30:34",
                                 "effectiveStartDate": "2024-03-26",
                                 "effectiveTime": "5000-12-01",
-                                "id": f"{id}"
+                                "id": id
                             }
                         ]
                     }
-                    # Hago la solicitud PUT para subir la matrícula
                     try:
                         consulta = requests.put(
                             f"http://{ip_camara}/ISAPI/Traffic/channels/1/licensePlateAuditData/record?format=json",
@@ -65,28 +67,18 @@ def modificar_matricula(datos):
                             auth=HTTPDigestAuth(user, passwd),
                             timeout=5
                         )
-                        
-                        # Manejo las respuestas de la solicitud
                         if consulta.status_code == 200:
-                            response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOk\r'
-                            print(f"[SUCCESS] Modificaion exitosa para {old_plate} a {new_plate} en {ip_camara}")
-                            logger.info(f"[SUCCESS] Modificaion exitosa para {old_plate} a {new_plate} en {ip_camara}")
+                            print(f"[SUCCESS] Modificación exitosa para {old_plate} a {new_plate} en {ip_camara}")
+                            enviar_respuesta(client_socket, '200 OK', 'Ok')
+                            logger.info(f"[SUCCESS] Modificación exitosa para {old_plate} a {new_plate} en {ip_camara}")
                         else:
-                            response = f'HTTP/1.1 417 Expectation Failed\r\nContent-Type: text/plain\r\n\r\nError al modificar {old_plate}'
                             print(f"[ERROR] Fallo al modificar {old_plate} en {ip_camara}: {consulta.status_code}")
-                            logger.critical(f"[ERROR] Fallo al modificar {old_plate} en {ip_camara}: {consulta.status_code}")
-
-                        
-                        # Envío la respuesta al cliente
-                        client_socket.sendall(response.encode())
-                        print(f"[RESPONSE] Enviando respuesta al cliente: {response}")
-                        logger.info(f"[RESPONSE] Enviando respuesta al cliente: {response}")
-
-                    except  requests.exceptions.Timeout:
-                        response = f'HTTP/1.1 408 Request Timeout\r\nContent-Type: text/plain\r\n\r\nSin respuesta del cliente {ip_camara}'
-                        print(f"[ERROR] El cliente {ip_camara} demoro en responder: {consulta.status_code}")
-                        logger.critical(f"[ERROR] El cliente {ip_camara} demoro en responder: {consulta.status_code}")
-
+                            enviar_respuesta(client_socket, '417 Expectation Failed', f'Error al modificar {old_plate}')
+                            logger.error(f"[ERROR] Fallo al modificar {old_plate} en {ip_camara}: {consulta.status_code}")
+                    except requests.exceptions.Timeout:
+                        print(f"[ERROR] El cliente {ip_camara} demoró en responder")
+                        enviar_respuesta(client_socket, '408 Request Timeout', f'Sin respuesta del cliente {ip_camara}')
+                        logger.error(f"[ERROR] El cliente {ip_camara} demoró en responder")
 
 def obtener_id_matricula(datos):
     ids = []
@@ -99,7 +91,6 @@ def obtener_id_matricula(datos):
         plates = datos['plates']
     else:
         plates = datos['old plate']
-
     for ip_camara in ip_camaras:
         for plate in plates:
             xml = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -109,97 +100,64 @@ def obtener_id_matricula(datos):
                 <searchResultPosition>0</searchResultPosition>
                 <LicensePlate>{plate}</LicensePlate>
             </LPListAuditSearchDescription>"""
-            
             url = f"http://{ip_camara}/ISAPI/Traffic/channels/1/searchLPListAudit"
             headers = {'Content-Type': 'application/xml'}
-
             try:
-                response = requests.post(url, 
-                                        data=xml, 
-                                        headers=headers, 
-                                        auth=HTTPDigestAuth(user, passwd),
-                                        timeout=5)
-                
+                response = requests.post(url, data=xml, headers=headers, auth=HTTPDigestAuth(user, passwd), timeout=5)
                 if response.status_code == 200:
-                    response_client = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOk'
-                    print("[SUCCESS] Petición enviada exitosamente")
-                    logger.info(f"[SUCCESS] Peticion para obtener datos enviada exitosamente")
-
+                    root = ET.fromstring(response.content)
+                    for elem in root.findall('.//{http://www.hikvision.com/ver20/XMLSchema}id'):
+                        ids.append(elem.text)
+                    if not ids:
+                        print(f"[ERROR] Petición para obtener datos falló: {response.status_code}")
+                        logger.warning(f"[ERROR] Petición para obtener datos falló: {response.status_code}")
                 else:
-                    continue  # Salta a la siguiente iteración si hay un error en la solicitud
-                
-                # Parsear el contenido XML de la respuesta
-                root = ET.fromstring(response.content)
-                for elem in root.findall('.//{http://www.hikvision.com/ver20/XMLSchema}id'):
-                    ids.append(elem.text)
-                if not ids:
-                    response_client = f'HTTP/1.1 417 Expectation Failed\r\nContent-Type: text/plain\r\n\r\nError al encontrar  {plate}'
-                    print(f"[ERROR] Error al encontrar  {plate}")
-                    logger.critical(f"[ERROR] Peticion para obtener datos fallo: {response.status_code}")
-            
-            except  requests.exceptions.Timeout:
-                response = f'HTTP/1.1 408 Request Timeout\r\nContent-Type: text/plain\r\n\r\nSin respuesta del cliente {ip_camara}'
-                print(f"[ERROR] El cliente {ip_camara} demoro en responder: {response.status_code}")
-                logger.critical(f"[ERROR] El cliente {ip_camara} demoro en responder: {response.status_code}")
-
-
-    client_socket.sendall(response_client.encode())
+                    print(f"[ERROR] Petición para obtener datos falló: {response.status_code}")
+                    logger.warning(f"[ERROR] Petición para obtener datos falló: {response.status_code}")
+            except requests.exceptions.Timeout:
+                print(f"[ERROR] El cliente {ip_camara} demoró en responder")
+                logger.error(f"[ERROR] El cliente {ip_camara} demoró en responder") 
     return ids
 
 def borrar_matricula(datos):
     ip_camaras = datos['camaras']
-    plates     = datos['plates']
+    plates = datos['plates']
     ids = obtener_id_matricula(datos)
     for ip_camara in ip_camaras:
         for plate in plates:
             for id in ids:
-                estrucutra_json = {"id":[f"{id}"]}
+                estructura_json = {"id": [id]}
                 url = f"http://{ip_camara}/ISAPI/Traffic/channels/1/DelLicensePlateAuditData?format=json"
-                headers = {'Content-Type': 'application/xml'}
                 try:
-                    response = requests.put(url, 
-                                            json=estrucutra_json, 
-                                            headers=headers, 
-                                            auth=HTTPDigestAuth(user, passwd),
-                                            timeout=5)
+                    response = requests.put(url, json=estructura_json, auth=HTTPDigestAuth(user, passwd), timeout=5)
                     if response.status_code == 200:
-                        response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOk\r'
-                        print("[SUCCESS] Petición enviada exitosamente")
-                        logger.info(f"[DATA DELETED] Dato Eliminado: {ip_camaras} {plate}")
-
+                        print(f"[DATA DELETED] Dato eliminado: {ip_camara} {plate}")
+                        enviar_respuesta(client_socket, '200 OK', 'Ok')
+                        logger.info(f"[DATA DELETED] Dato eliminado: {ip_camara} {plate}")
                     else:
-                        response = f'HTTP/1.1 204 No Content\r\nContent-Type: text/plain\r\n\r\nMatricula no encontrada \r'
-                        print(f"[ERROR] Fallo en la peticion: {response.status_code}")
-                        logger.info(f"[ERROR] Fallo en la peticion: {ip_camara} {plate}")
-
-                        continue  # Salta a la siguiente iteración si hay un error en la solicitud
-                    client_socket.sendall(response.encode())
-                
-                except  requests.exceptions.Timeout:
-                    response = f'HTTP/1.1 408 Request Timeout\r\nContent-Type: text/plain\r\n\r\nSin respuesta del cliente {ip_camara}'
-                    print(f"[ERROR] El cliente {ip_camara} demoro en responder: {response.status_code}")
-                    logger.critical(f"[ERROR] El cliente {ip_camara} demoro en responder: {response.status_code}")
-
+                        
+                        print(f"[ERROR] Fallo en la petición: {ip_camara} {plate}")
+                        enviar_respuesta(client_socket, '204 No Content', 'Matrícula no encontrada')
+                        logger.warning(f"[ERROR] Fallo en la petición: {ip_camara} {plate}")
+                except requests.exceptions.Timeout:
+                    enviar_respuesta(client_socket, '408 Request Timeout', f'Sin respuesta del cliente {ip_camara}')
+                    logger.error(f"[ERROR] El cliente {ip_camara} demoró en responder")
 
 def subir_matricula(datos):
-    # Obtengo las IP de las cámaras y las matrículas
     ip_camaras = datos['camaras']
     plates = datos['plates']
-    
     for ip_camara in ip_camaras:
         for plate in plates:
-            # Creo el JSON con la información de la matrícula
             json_matricula_subida = {
                 "LicensePlateInfoList": [{
-                    "LicensePlate": f"{plate}",
+                    "LicensePlate": plate,
                     "listType": "whiteList",
                     "createTime": "2024-03-26T16:30:34",
                     "effectiveStartDate": "2024-03-26",
-                    "effectiveTime": "5000-12-01", 
+                    "effectiveTime": "5000-12-01",
                     "id": ""
                 }]
             }
-            # Hago la solicitud PUT para subir la matrícula
             try:
                 consulta = requests.put(
                     f"http://{ip_camara}/ISAPI/Traffic/channels/1/licensePlateAuditData/record?format=json",
@@ -207,128 +165,105 @@ def subir_matricula(datos):
                     auth=HTTPDigestAuth(user, passwd),
                     timeout=5
                 )
-                
-                # Manejo las respuestas de la solicitud
                 if consulta.status_code == 200:
-                    response = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOk\r'
-                    print(f"[SUCCESS] Subida exitosa para {plate} en {ip_camara}")
-                    logger.info(f"[DATA UPLOAD] Datos Subidos: {ip_camaras} {plate}")
-
+                    print(f"[CLIENT] [DATA UPLOAD] Datos subidos: {ip_camara} {plate}")
+                    enviar_respuesta(client_socket, '200 OK', 'Ok')
+                    logger.info(f"[CLIENT] [DATA UPLOAD] Datos subidos: {ip_camara} {plate}")
                 else:
-                    response = f'HTTP/1.1 417 Expectation Failed\r\nContent-Type: text/plain\r\n\r\nError al subir {plate}'
-                    print(f"[ERROR] Fallo al subir {plate} en {ip_camara}: {consulta.status_code}")
-                    logger.critical(f"[ERROR DATA UPLOAD] Fallo al subir {plate} en {ip_camara}: {consulta.status_code}")
-                
-                # Envío la respuesta al cliente
-                client_socket.sendall(response.encode())
-                print(f"[RESPONSE] Enviando respuesta al cliente: {response}")
-                logger.info(f"[RESPONSE] Enviando respuesta al cliente: {response}")
-        
+                    print(f"[CLIENT] [ERROR DATA UPLOAD] Fallo al subir {plate} en {ip_camara}: {consulta.status_code}")
+                    enviar_respuesta(client_socket, '417 Expectation Failed', f'Error al subir {plate}')
+                    logger.error(f"[CLIENT] [ERROR DATA UPLOAD] Fallo al subir {plate} en {ip_camara}: {consulta.status_code}")
             except requests.exceptions.Timeout:
-                response = f'HTTP/1.1 408 Request Timeout\r\nContent-Type: text/plain\r\n\r\nSin respuesta del cliente {ip_camara}'
-                print(f"[ERROR] El cliente {ip_camara} demoro en responder: {response.status_code}")
-                logger.critical(f"[ERROR] El cliente {ip_camara} demoro en responder: {response.status_code}")
-
+                print(f"[CLIENT] [ERROR] El cliente {ip_camara} demoró en responder")
+                enviar_respuesta(client_socket, '408 Request Timeout', f'Sin respuesta del cliente {ip_camara}')
+                logger.error(f"[CLIENT] [ERROR] El cliente {ip_camara} demoró en responder")
 
 def obtener_datos(request):
-    # Separar los headers en una lista
     headers = request.split('\r\n')
-    
-    # Verificar si el método es POST
     if headers[0].startswith('POST'):
-        # Buscar el índice de la línea en blanco que separa los headers del cuerpo
+        action_post = headers[0].split(" ")[1]
         idx = request.find('\r\n\r\n')
         if idx != -1:
-            body = request[idx + 4:]  # Obtener el cuerpo de la solicitud
-            data_camaras = json.loads(body)  # Parsear el JSON
-            print(f"[DATA RECEIVED] Datos recibidos: {data_camaras}")
-            logger.info(f"[DATA RECEIVED] Datos recibidos: {data_camaras}")
-            return data_camaras
+            body = request[idx + 4:]
+            try:
+                data_camaras = json.loads(body)
+                print(f"[CLIENT] [DATA RECEIVED] Datos recibidos: {data_camaras}")
+                logger.info(f"[CLIENT] [DATA RECEIVED] Datos recibidos: {data_camaras}")
+                return data_camaras,action_post
+            except json.JSONDecodeError as e:
+                print(f"[SERVER] [ERROR] JSON mal formado: {e}")
+                enviar_respuesta(client_socket, '400 Bad Request', 'JSON mal formado')
+                logger.error(f"[ERROR] JSON mal formado: {e}")
         else:
-            response = 'HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nCuerpo de solicitud no encontrado'
-            client_socket.sendall(response.encode())
-            print("[ERROR] Cuerpo de solicitud no encontrado")
+            print("[SERVER] [ERROR] Cuerpo de solicitud no encontrado")
+            enviar_respuesta(client_socket, '400 Bad Request', 'Cuerpo de solicitud no encontrado')
+            logger.error("[SERVER] [ERROR] Cuerpo de solicitud no encontrado")
     else:
-        response = 'HTTP/1.1 405 Method Not Allowed\r\nContent-Type: text/plain\r\n\r\nMétodo no permitido'
-        client_socket.sendall(response.encode())
-        print("[ERROR] Método no permitido")
+        print("[SERVER] [ERROR] Método no permitido")
+        enviar_respuesta(client_socket, '405 Method Not Allowed', 'Método no permitido')
+        logger.error("[SERVER] [ERROR] Método no permitido")
+    return None
+
+def manejar_solicitud(client_socket):
+    try:
+        request = client_socket.recv(1024).decode('utf-8')
+        logger.info(f"[REQUEST] Solicitud recibida: {request}")
+        data,action = obtener_datos(request)
+        if data:
+            if action == '/AddPlate':
+                subir_matricula(data)
+            elif action == '/UpdatePlate':
+                modificar_matricula(data)
+            elif action == '/DeletePlate':
+                borrar_matricula(data)
+            elif action == '/stay':
+                subir_estadias(data)
+            else:
+                print("[ERROR] Operación no reconocida")
+                enviar_respuesta(client_socket, '400 Bad Request', 'Operación no reconocida')
+                logger.error("[ERROR] Operación no reconocida")
+    except Exception as e:
+        enviar_respuesta(client_socket, '500 Internal Server Error', 'Error del servidor')
+        print("[ERROR] Error del servidor: ", e)
+        logger.exception("[ERROR] Error del servidor: ", e)
+    finally:
+        client_socket.close()
+
+def iniciar_servidor():
+    global server_socket,client_socket
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind(('', PUERTO))
+    server_socket.listen(5)
+    print(f"[SERVER STARTED] Servidor escuchando en el puerto {PUERTO}")
+    logger.info(f"[SERVER STARTED] Servidor escuchando en el puerto {PUERTO}")
+    while True:
+        client_socket, addr = server_socket.accept()
+        print(f"[CONNECTION ACCEPTED] Conexión aceptada de {addr}")
+        logger.info(f"[CONNECTION ACCEPTED] Conexión aceptada de {addr}")
+        manejar_solicitud(client_socket)
 
 def signal_handler(sig, frame):
-    print("\n[SHUTDOWN] Cerrando el servidor...")
-    logger.info(f"[SHUTDOWN] Cerrando el servidor...")
-
+    print(f"[SERVER STOPPED] Servidor detenido")
+    logger.info("[SERVER STOPPED] Servidor detenido")
     if server_socket:
         server_socket.close()
     sys.exit(0)
 
-if __name__ == "__main__":
-    # Configurar argumentos de línea de comandos
-    parser = argparse.ArgumentParser(description='Servidor HTTP')
-    parser.add_argument('-u', '--usuario', required=True, help='Usuario')
-    parser.add_argument('-c', '--contraseña', required=True, help='Contraseña')
-    parser.add_argument('-p', '--puerto', type=int, default=8080, help='Puerto del servidor (por defecto: 8080)')
+def main():
+    global user, passwd, PUERTO
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-u', '--user', required=True, help='Nombre de usuario')
+    parser.add_argument('-c', '--passwd', required=True, help='Contraseña')
+    parser.add_argument('-p', '--port', required=False,default=8080, help='Puerto')
     args = parser.parse_args()
+    user = args.user
+    passwd = args.passwd
+    PUERTO = int(args.port)
 
-    # Asignar los valores de usuario, contraseña y puerto
-    user = args.usuario
-    passwd = args.contraseña
-    PUERTO = args.puerto
-
-    # Obtener el nombre de host y la IP local
-    HOST = socket.getfqdn()
-    IP_LOCAL = socket.gethostbyname_ex(HOST)[2][1]
-
-    # Configurar el manejador de señal para `Ctrl+C`
     signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 
-    while True:
-        try:
-            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            server_socket.bind((IP_LOCAL, PUERTO))
-            server_socket.listen(5)
-            print(f"[SERVER STARTED] Servidor escuchando en {IP_LOCAL}:{PUERTO}")
-            logger.info(f"[SERVER STARTED] Servidor escuchando en {IP_LOCAL}:{PUERTO}")
-            
-            while True:
-                try:
-                    client_socket, client_address = server_socket.accept()
-                    with client_socket:
-                        print(f"[CONNECTION] Conexión establecida con: {client_address}")
-                        logger.info(f"[CONNECTION] Conexion establecida con: {client_address}")
+    iniciar_servidor()
 
-                        # Recibir la solicitud del cliente
-                        request = client_socket.recv(2048).decode()
-                        print(f"[REQUEST RECEIVED] [{client_address}] Contenido: {request}")
-                        logger.info(f"[REQUEST RECEIVED] [{client_address}] Contenido: {request}")
-
-                        # Determinar la acción a realizar según la solicitud
-                        if request.split(" ")[1] == "/DeletePlate":
-                            datos = obtener_datos(request)
-                            borrar_matricula(datos)
-                        elif request.split(" ")[1] == "/UpdatePlate":
-                            datos = obtener_datos(request)
-                            modificar_matricula(datos)
-                        elif request.split(" ")[1] == "/AddPlate":
-                            datos = obtener_datos(request)
-                            if datos:
-                                subir_matricula(datos)
-                        else:
-                            response = 'HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nCuerpo de solicitud no encontrado'
-                            client_socket.sendall(response.encode())
-                            print("[ERROR] Cuerpo de solicitud no encontrado")
-                            logger.critical(f"[ERROR] Cuerpo de solicitud no encontrado")
-                
-                except Exception as e:
-                    print(f"[ERROR] Error en la comunicación con el cliente: {e}")
-                    logger.critical(f"[ERROR] Error en la comunicacion con el cliente: {e}")
-                    continue  # Continuar con el siguiente cliente en caso de error
-
-        except Exception as e:
-            print(f"[ERROR] Error en el servidor: {e}")
-            print("[RESTART] Reiniciando el servidor en 5 segundos...")
-            logger.critical(f"[ERROR] Error en el servidor: {e}")
-            logger.critical(f"[RESTART] Reiniciando el servidor en 5 segundos...")
-
-            time.sleep(5)  # Esperar 5 segundos antes de intentar reiniciar el servidor
-
+if __name__ == '__main__':
+    main()
