@@ -1,0 +1,12 @@
+{
+"Cliente 1": {
+        "Parking":"1",
+        "In": [
+            "viarosina.dyndns.org:8190"
+
+        ],
+        "Out": [
+            "viarosina.dyndns.org:8190"
+        ]
+    }
+}

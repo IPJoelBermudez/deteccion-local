@@ -1,9 +1,6 @@
-import logging
-from logging.handlers import RotatingFileHandler
-import datetime
-import os
+from modules import datetime,log,RotatingFileHandler,os
 
-def setup_logger(log_filename=f'{datetime.datetime.now().strftime("%Y-%m-%d")}.log'):
+def setup_logger(log_filename=f'{datetime.now().strftime("%Y-%m-%d")}.log'):
     '''
     Descripción: Esta función configura y devuelve un objeto logger que permite el registro
     de mensajes con diferentes niveles de severidad, como debug, info, warning, error y critical.
@@ -26,16 +23,16 @@ def setup_logger(log_filename=f'{datetime.datetime.now().strftime("%Y-%m-%d")}.l
     
 
     # Crea un logger
-    logger = logging.getLogger("MyLogger")
-    logger.setLevel(logging.DEBUG)  # Puedes cambiar esto a INFO, WARNING, etc.
+    logger = log.getLogger("MyLogger")
+    logger.setLevel(log.DEBUG)  # Puedes cambiar esto a INFO, WARNING, etc.
 
     # Crea un handler para escribir los logs en un archivo con la fecha actual en el nombre
     log_path = os.path.join(log_directory, log_filename)
     handler = RotatingFileHandler(log_path, maxBytes=10000, backupCount=5)
-    handler.setLevel(logging.DEBUG)
+    handler.setLevel(log.DEBUG)
 
     # Define el formato del log
-    formatter = logging.Formatter('[%(asctime)s] %(message)s', datefmt='%Y-%m-%d : %H:%M:%S')
+    formatter = log.Formatter('[%(asctime)s] %(message)s', datefmt='%Y-%m-%d : %H:%M:%S')
     handler.setFormatter(formatter)
 
     # Añade el handler al logger

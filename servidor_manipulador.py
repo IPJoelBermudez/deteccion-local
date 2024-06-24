@@ -1,14 +1,5 @@
-import socket
-import subprocess
-import requests
-from utils.logger import logger 
-from requests.auth import HTTPDigestAuth
-import xml.etree.ElementTree as ET
-import json
-import argparse
-import time
-import signal
-import sys
+from utils.modules import subprocess,sys,requests,HTTPDigestAuth,ET,json,socket,signal,argparse,datetime
+from utils.logger import logger
 
 # Lista de dependencias
 dependencies = ["requests"]
@@ -31,21 +22,26 @@ passwd = None
 PUERTO = None
 server_socket = None
 
+def obtener_fecha_actual():
+    # Obtener la fecha y hora actual en UTC
+    fecha_actual = datetime.now(datetime.UTC)
+    # Formatear la fecha y hora en el formato ISO 8601 con la 'Z' indicando UTC
+    fecha_formateada = fecha_actual.strftime('%Y-%m-%dT%H:%M:%SZ')
+    return fecha_formateada
+
 def enviar_respuesta(client_socket, status_code, message):
     response = f'HTTP/1.1 {status_code}\r\nContent-Type: text/plain\r\n\r\n{message}'
     client_socket.sendall(response.encode())
     logger.info(f"[RESPONSE] Enviando respuesta: {response}")
 
-def subir_estadias(datos):
-    raise NotImplementedError('Por implementar')
 
 def modificar_matricula(datos):
     ip_camaras = datos['camaras']
-    new_plates = datos['new plate']
-    old_plates = datos['old plate']
-    ids = obtener_id_matricula(datos)
-    for ip_camara in ip_camaras:
-        for new_plate in new_plates:
+    new_plates = datos['new plate'] # Obtengo la matricula nueva
+    old_plates = datos['old plate'] # Y la vieja
+    ids = obtener_id_matricula(datos) # Obtengo la id de las matriculas a modificar
+    for ip_camara in ip_camaras: # Itero sobre los datos obtenidos (Matriculas viejas y nuevas)
+        for new_plate in new_plates: 
             for old_plate in old_plates:
                 for id in ids:
                     json_matricula_actualizada  = {
@@ -53,8 +49,8 @@ def modificar_matricula(datos):
                             {
                                 "LicensePlate": new_plate,
                                 "listType": "whiteList",
-                                "createTime": "2024-03-26T16:30:34",
-                                "effectiveStartDate": "2024-03-26",
+                                "createTime": "",
+                                "effectiveStartDate": "", # Saco las horas y los minutos
                                 "effectiveTime": "5000-12-01",
                                 "id": id
                             }
@@ -144,7 +140,7 @@ def borrar_matricula(datos):
                     logger.error(f"[ERROR] El cliente {ip_camara} demoró en responder")
 
 def subir_matricula(datos):
-    ip_camaras = datos['camaras']
+    ip_camaras = datos['camaras'] 
     plates = datos['plates']
     for ip_camara in ip_camaras:
         for plate in plates:
@@ -152,8 +148,8 @@ def subir_matricula(datos):
                 "LicensePlateInfoList": [{
                     "LicensePlate": plate,
                     "listType": "whiteList",
-                    "createTime": "2024-03-26T16:30:34",
-                    "effectiveStartDate": "2024-03-26",
+                    "createTime": "",
+                    "effectiveStartDate": f"",
                     "effectiveTime": "5000-12-01",
                     "id": ""
                 }]
@@ -216,8 +212,6 @@ def manejar_solicitud(client_socket):
                 modificar_matricula(data)
             elif action == '/DeletePlate':
                 borrar_matricula(data)
-            elif action == '/stay':
-                subir_estadias(data)
             else:
                 print("[ERROR] Operación no reconocida")
                 enviar_respuesta(client_socket, '400 Bad Request', 'Operación no reconocida')

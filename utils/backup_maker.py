@@ -1,6 +1,4 @@
-import argparse
-import schedule
-import time
+from modules import argparse,time,schedule
 from tools import descargar_backup, subir_backup
 
 def job(user, passwd, ip, path_backup):
