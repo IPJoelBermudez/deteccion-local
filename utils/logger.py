@@ -1,4 +1,4 @@
-from modules import datetime,log,RotatingFileHandler,os
+from .modules import datetime,log,RotatingFileHandler,os
 
 def setup_logger(log_filename=f'{datetime.now().strftime("%Y-%m-%d")}.log'):
     '''
