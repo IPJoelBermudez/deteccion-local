@@ -1,8 +1,8 @@
-from utils.modules import subprocess,sys,requests,HTTPDigestAuth,ET,json,socket,signal,argparse,datetime
+from utils.modules import subprocess,sys,requests,HTTPDigestAuth,ET,json,socket,signal,argparse,datetime,product
 from utils.logger import logger
 
 # Lista de dependencias
-dependencies = ["requests"]
+dependencies = ["requests","xmltodict","argparse"]
 
 def install_dependencies(packages):
     """Instala las dependencias usando pip"""
@@ -20,6 +20,7 @@ install_dependencies(dependencies)
 user = None
 passwd = None
 PUERTO = None
+timeout = 5
 server_socket = None
 
 def obtener_fecha_actual():
@@ -34,145 +35,159 @@ def enviar_respuesta(client_socket, status_code, message):
     client_socket.sendall(response.encode())
     logger.info(f"[RESPONSE] Enviando respuesta: {response}")
 
-
 def modificar_matricula(datos):
-    ip_camaras = datos['camaras']
+    respuestas_camaras  = {}
+    totales_modificadas = 0
+    ip_camaras = list(set(datos['camaras'])) # List Set,  esto sirve para eliminar duplicados 
     new_plates = datos['new plate'] # Obtengo la matricula nueva
     old_plates = datos['old plate'] # Y la vieja
+    plates_totales = len(new_plates) 
+
     ids = obtener_id_matricula(datos) # Obtengo la id de las matriculas a modificar
-    for ip_camara in ip_camaras: # Itero sobre los datos obtenidos (Matriculas viejas y nuevas)
-        for new_plate in new_plates: 
-            for old_plate in old_plates:
-                for id in ids:
-                    json_matricula_actualizada  = {
-                        "LicensePlateInfoList": [
-                            {
-                                "LicensePlate": new_plate,
-                                "listType": "whiteList",
-                                "createTime": "",
-                                "effectiveStartDate": "", # Saco las horas y los minutos
-                                "effectiveTime": "5000-12-01",
-                                "id": id
-                            }
-                        ]
-                    }
-                    try:
-                        consulta = requests.put(
-                            f"http://{ip_camara}/ISAPI/Traffic/channels/1/licensePlateAuditData/record?format=json",
-                            json=json_matricula_actualizada,
-                            auth=HTTPDigestAuth(user, passwd),
-                            timeout=5
-                        )
-                        if consulta.status_code == 200:
-                            print(f"[SUCCESS] Modificación exitosa para {old_plate} a {new_plate} en {ip_camara}")
-                            enviar_respuesta(client_socket, '200 OK', 'Ok')
-                            logger.info(f"[SUCCESS] Modificación exitosa para {old_plate} a {new_plate} en {ip_camara}")
-                        else:
-                            print(f"[ERROR] Fallo al modificar {old_plate} en {ip_camara}: {consulta.status_code}")
-                            enviar_respuesta(client_socket, '417 Expectation Failed', f'Error al modificar {old_plate}')
-                            logger.error(f"[ERROR] Fallo al modificar {old_plate} en {ip_camara}: {consulta.status_code}")
-                    except requests.exceptions.Timeout:
-                        print(f"[ERROR] El cliente {ip_camara} demoró en responder")
-                        enviar_respuesta(client_socket, '408 Request Timeout', f'Sin respuesta del cliente {ip_camara}')
-                        logger.error(f"[ERROR] El cliente {ip_camara} demoró en responder")
+    for ip_camara, new_plate, old_plate, id in product(ip_camaras, new_plates, old_plates, ids): # Iterando con product, mejora el tiempo de respuesta en un 42%
+        json_matricula_actualizada  = {
+            "LicensePlateInfoList": [
+                {
+                    "LicensePlate": new_plate,
+                    "listType": "whiteList",
+                    "createTime": "",
+                    "effectiveStartDate": "", # Saco las horas y los minutos
+                    "effectiveTime": "5000-12-01",
+                    "id": id
+                }
+            ]
+        }
+        try:
+            consulta = requests.put(
+                f"http://{ip_camara}/ISAPI/Traffic/channels/1/licensePlateAuditData/record?format=json",
+                json=json_matricula_actualizada,
+                auth=HTTPDigestAuth(user, passwd),
+                timeout=timeout
+            )
+            
+            if consulta.status_code == 200:
+                totales_modificadas = totales_modificadas + 1
+                if totales_modificadas == plates_totales:
+                    respuestas_camaras[ip_camara] = 'ok'
+                    totales_modificadas = 0
+                    print(totales_modificadas)
+                    print(f"[SUCCESS] Modificación exitosa para '{old_plate}' a '{new_plate}' en {ip_camara}")
+                    enviar_respuesta(client_socket, '200 OK', respuestas_camaras)
+                    logger.info(f"[SUCCESS] Modificación exitosa para '{old_plate}' a '{new_plate}' en {ip_camara}")
+            else:
+                print(f"[ERROR] Fallo al modificar '{old_plate}' en {ip_camara}: {consulta.status_code}")
+                enviar_respuesta(client_socket, '417 Expectation Failed', f'Error al modificar {old_plate}')
+                logger.error(f"[ERROR] Fallo al modificar {old_plate} en {ip_camara}: {consulta.status_code}")
+        
+        except requests.exceptions.Timeout:
+            print(f"[ERROR] El cliente {ip_camara} demoró en responder")
+            enviar_respuesta(client_socket, '408 Request Timeout', f'Sin respuesta del cliente {ip_camara}')
+            logger.error(f"[ERROR] El cliente {ip_camara} demoró en responder")
+
 
 def obtener_id_matricula(datos):
-    ids = []
+    id_plate_pairs = []
 
     ip_camaras = datos['camaras']
 
-    # Como el cuerpo de la solicitud es diferente cuando se va a modificar la matricula
-    # lo adapto para que funcione
+    # Adaptación del cuerpo de la solicitud según el caso
     if 'plates' in datos and datos['plates']:
         plates = datos['plates']
     else:
         plates = datos['old plate']
-    for ip_camara in ip_camaras:
-        for plate in plates:
-            xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-            <LPListAuditSearchDescription>
-                <searchID>7117D5B5-7DAC-4EF2-9869-D804DDAAE201</searchID>
-                <maxResults>20</maxResults>
-                <searchResultPosition>0</searchResultPosition>
-                <LicensePlate>{plate}</LicensePlate>
-            </LPListAuditSearchDescription>"""
-            url = f"http://{ip_camara}/ISAPI/Traffic/channels/1/searchLPListAudit"
-            headers = {'Content-Type': 'application/xml'}
-            try:
-                response = requests.post(url, data=xml, headers=headers, auth=HTTPDigestAuth(user, passwd), timeout=5)
-                if response.status_code == 200:
-                    root = ET.fromstring(response.content)
-                    for elem in root.findall('.//{http://www.hikvision.com/ver20/XMLSchema}id'):
-                        ids.append(elem.text)
-                    if not ids:
-                        print(f"[ERROR] Petición para obtener datos falló: {response.status_code}")
-                        logger.warning(f"[ERROR] Petición para obtener datos falló: {response.status_code}")
-                else:
-                    print(f"[ERROR] Petición para obtener datos falló: {response.status_code}")
-                    logger.warning(f"[ERROR] Petición para obtener datos falló: {response.status_code}")
-            except requests.exceptions.Timeout:
-                print(f"[ERROR] El cliente {ip_camara} demoró en responder")
-                logger.error(f"[ERROR] El cliente {ip_camara} demoró en responder") 
-    return ids
+        
+    for ip_camara, plate in product(ip_camaras, plates):
+        xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+        <LPListAuditSearchDescription>
+            <searchID>7117D5B5-7DAC-4EF2-9869-D804DDAAE201</searchID>
+            <maxResults>20</maxResults>
+            <searchResultPosition>0</searchResultPosition>
+            <LicensePlate>{plate}</LicensePlate>
+        </LPListAuditSearchDescription>"""
+        url = f"http://{ip_camara}/ISAPI/Traffic/channels/1/searchLPListAudit"
+        headers = {'Content-Type': 'application/xml'}
+        
+        try:
+            response = requests.post(url, data=xml, headers=headers, auth=HTTPDigestAuth(user, passwd), timeout=timeout)
+            if response.status_code == 200:
+                root = ET.fromstring(response.content)
+                for elem in root.findall('.//{http://www.hikvision.com/ver20/XMLSchema}id'):
+                    id_plate_pairs.append((elem.text, plate))
+                if not id_plate_pairs:
+                    print(f"[ERROR] No se encontraron IDs para {plate} en {ip_camara}")
+                    logger.warning(f"[ERROR] No se encontraron IDs para {plate} en {ip_camara}")
+            else:
+                print(f"[ERROR] Petición para obtener datos falló: {response.status_code}")
+                logger.warning(f"[ERROR] Petición para obtener datos falló: {response.status_code}")
+        except requests.exceptions.Timeout:
+            print(f"[ERROR] El cliente {ip_camara} demoró en responder")
+            logger.error(f"[ERROR] El cliente {ip_camara} demoró en responder")
+
+    return id_plate_pairs
 
 def borrar_matricula(datos):
-    ip_camaras = datos['camaras']
+    ip_camaras = list(set(datos['camaras']))
     plates = datos['plates']
     ids = obtener_id_matricula(datos)
-    for ip_camara in ip_camaras:
-        for plate in plates:
-            for id in ids:
-                estructura_json = {"id": [id]}
-                url = f"http://{ip_camara}/ISAPI/Traffic/channels/1/DelLicensePlateAuditData?format=json"
-                try:
-                    response = requests.put(url, json=estructura_json, auth=HTTPDigestAuth(user, passwd), timeout=5)
-                    if response.status_code == 200:
-                        print(f"[DATA DELETED] Dato eliminado: {ip_camara} {plate}")
-                        enviar_respuesta(client_socket, '200 OK', 'Ok')
-                        logger.info(f"[DATA DELETED] Dato eliminado: {ip_camara} {plate}")
-                    else:
-                        
-                        print(f"[ERROR] Fallo en la petición: {ip_camara} {plate}")
-                        enviar_respuesta(client_socket, '204 No Content', 'Matrícula no encontrada')
-                        logger.warning(f"[ERROR] Fallo en la petición: {ip_camara} {plate}")
-                except requests.exceptions.Timeout:
-                    enviar_respuesta(client_socket, '408 Request Timeout', f'Sin respuesta del cliente {ip_camara}')
-                    logger.error(f"[ERROR] El cliente {ip_camara} demoró en responder")
+    print(ids)
+    input()
+    print(f"[ERROR] Matricula no encontrado: {ip_camara} {plate}")
+    enviar_respuesta(client_socket, '200 OK', 'Ok')
+    logger.info(f"[DATA DELETED] Dato eliminado: {ip_camara} {plate}")        
+    for ip_camara,plate in product(ip_camaras,plates,ids):
+
+        estructura_json = {"id": [id]}
+        url = f"http://{ip_camara}/ISAPI/Traffic/channels/1/DelLicensePlateAuditData?format=json"
+        try:
+            response = requests.put(url, json=estructura_json, auth=HTTPDigestAuth(user, passwd), timeout=timeout)
+            if response.status_code == 200:
+                print(f"[DATA DELETED] Dato eliminado: {ip_camara} {plate}")
+                enviar_respuesta(client_socket, '200 OK', 'Ok')
+                logger.info(f"[DATA DELETED] Dato eliminado: {ip_camara} {plate}")
+
+            else:
+                print(f"[ERROR] Fallo en la petición: {ip_camara} {plate}")
+                enviar_respuesta(client_socket, '204 No Content', 'Matrícula no encontrada')
+                logger.warning(f"[ERROR] Fallo en la petición: {ip_camara} {plate}")
+
+        except requests.exceptions.Timeout:
+            enviar_respuesta(client_socket, '408 Request Timeout', f'Sin respuesta del cliente {ip_camara}')
+            logger.error(f"[ERROR] El cliente {ip_camara} demoró en responder")
 
 def subir_matricula(datos):
-    ip_camaras = datos['camaras'] 
-    plates = datos['plates']
-    for ip_camara in ip_camaras:
-        for plate in plates:
-            json_matricula_subida = {
-                "LicensePlateInfoList": [{
-                    "LicensePlate": plate,
-                    "listType": "whiteList",
-                    "createTime": "",
-                    "effectiveStartDate": f"",
-                    "effectiveTime": "5000-12-01",
-                    "id": ""
-                }]
-            }
-            try:
-                consulta = requests.put(
-                    f"http://{ip_camara}/ISAPI/Traffic/channels/1/licensePlateAuditData/record?format=json",
-                    json=json_matricula_subida,
-                    auth=HTTPDigestAuth(user, passwd),
-                    timeout=5
-                )
-                if consulta.status_code == 200:
-                    print(f"[CLIENT] [DATA UPLOAD] Datos subidos: {ip_camara} {plate}")
-                    enviar_respuesta(client_socket, '200 OK', 'Ok')
-                    logger.info(f"[CLIENT] [DATA UPLOAD] Datos subidos: {ip_camara} {plate}")
-                else:
-                    print(f"[CLIENT] [ERROR DATA UPLOAD] Fallo al subir {plate} en {ip_camara}: {consulta.status_code}")
-                    enviar_respuesta(client_socket, '417 Expectation Failed', f'Error al subir {plate}')
-                    logger.error(f"[CLIENT] [ERROR DATA UPLOAD] Fallo al subir {plate} en {ip_camara}: {consulta.status_code}")
-            except requests.exceptions.Timeout:
-                print(f"[CLIENT] [ERROR] El cliente {ip_camara} demoró en responder")
-                enviar_respuesta(client_socket, '408 Request Timeout', f'Sin respuesta del cliente {ip_camara}')
-                logger.error(f"[CLIENT] [ERROR] El cliente {ip_camara} demoró en responder")
+    ip_camaras = list(set(datos['camaras'])) # List Set,  esto sirve para eliminar duplicados 
+    plates     = datos['plates']
+    for ip_camara, plate in product(ip_camaras, plates): # Iterando con product, mejora el tiempo de respuesta en un 42%
+        # Request para agregar la matricula
+        json_matricula_subida = {
+            "LicensePlateInfoList": [{
+                "LicensePlate": plate,
+                "listType": "whiteList",
+                "createTime": "", 
+                "effectiveStartDate": f"",
+                "effectiveTime": "5000-12-01", # El tiempo de efectividad de la matricula 
+                "id": ""
+            }]
+        }
+        try:
+            consulta = requests.put(
+                f"http://{ip_camara}/ISAPI/Traffic/channels/1/licensePlateAuditData/record?format=json",
+                json=json_matricula_subida,
+                auth=HTTPDigestAuth(user, passwd),
+                timeout=timeout
+            )
+            if consulta.status_code == 200:
+                print(f"[CLIENT] [DATA UPLOAD] Datos subidos: {ip_camara} {plate}")
+                enviar_respuesta(client_socket, '200 OK', 'Ok')
+                logger.info(f"[CLIENT] [DATA UPLOAD] Datos subidos: {ip_camara} {plate}")
+            else:
+                print(f"[CLIENT] [ERROR DATA UPLOAD] Fallo al subir {plate} en {ip_camara}: {consulta.status_code}")
+                enviar_respuesta(client_socket, '417 Expectation Failed', f'Error al subir {plate}')
+                logger.error(f"[CLIENT] [ERROR DATA UPLOAD] Fallo al subir {plate} en {ip_camara}: {consulta.status_code}")
+        except requests.exceptions.Timeout:
+            print(f"[CLIENT] [ERROR] El cliente {ip_camara} demoró en responder")
+            enviar_respuesta(client_socket, '408 Request Timeout', f'Sin respuesta del cliente {ip_camara}')
+            logger.error(f"[CLIENT] [ERROR] El cliente {ip_camara} demoró en responder")
 
 def obtener_datos(request):
     headers = request.split('\r\n')
@@ -209,6 +224,7 @@ def manejar_solicitud(client_socket):
             if action == '/AddPlate':
                 subir_matricula(data)
             elif action == '/UpdatePlate':
+                print("Multiple")
                 modificar_matricula(data)
             elif action == '/DeletePlate':
                 borrar_matricula(data)

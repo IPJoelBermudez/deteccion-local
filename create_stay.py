@@ -55,6 +55,7 @@ def procesar_respuesta(response):
                     matricula = formater_plate(plate.text)
                     estadia = formatear_fecha(fecha_ingreso.text)
                     resultado[matricula] = estadia
+                    
     # Retorno los resultados encontrados
     return resultado
 
