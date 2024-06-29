@@ -18,4 +18,4 @@ import time
 import logging as log
 from logging.handlers import RotatingFileHandler
 import os
-from itertools import product 
+from itertools import product
