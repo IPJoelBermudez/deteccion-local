@@ -152,24 +152,43 @@ def modificar_matricula(datos):
 
 
 def borrar_matricula(datos):
-    ip_camaras = list(set(datos['camaras']))
-    plates = datos['plates']
-    ids = obtener_id_matricula(datos)
-    print(ids)
-    input()
-    print(f"[ERROR] Matricula no encontrado: {ip_camara} {plate}")
-    enviar_respuesta(client_socket, '200 OK', 'Ok')
-    logger.info(f"[DATA DELETED] Dato eliminado: {ip_camara} {plate}")        
-    for ip_camara,plate in product(ip_camaras,plates,ids):
+    respuestas_camaras = {}  # Diccionario para almacenar las respuestas de las cámaras
+    ip_camaras = list(set(datos['camaras']))  # Lista de cámaras sin duplicados
+    ids_dict = obtener_id_matricula(datos)  # Obtener los IDs de las matrículas
+    
+    # Separar matrículas encontradas y no encontradas
+    plates_encontradas = ids_dict['encontradas']
+    plates_no_encontradas = ids_dict['no_encontradas']
 
-        estructura_json = {"id": [id]}
-        url = f"http://{ip_camara}/ISAPI/Traffic/channels/1/DelLicensePlateAuditData?format=json"
-        try:
-            response = requests.put(url, json=estructura_json, auth=HTTPDigestAuth(user, passwd), timeout=timeout)
-            if response.status_code == 200:
-                print(f"[DATA DELETED] Dato eliminado: {ip_camara} {plate}")
-                enviar_respuesta(client_socket, '200 OK', 'Ok')
-                logger.info(f"[DATA DELETED] Dato eliminado: {ip_camara} {plate}")
+    # Contar el total de cámaras y matrículas encontradas
+    total_plates = len(plates_encontradas)
+    total_camaras = len(plates_encontradas.keys())
+
+    # Iterar sobre cada cámara en la lista de IPs únicas
+    for ip_camara in ip_camaras:
+        if ip_camara in plates_encontradas:
+            # Iterar sobre cada matrícula encontrada para la cámara actual
+            for plate in plates_encontradas[ip_camara]:
+                # Estructura JSON para la solicitud de eliminación
+                estructura_json = {"id": [plate['id']]}
+                
+                # URL de la API para eliminar la matrícula
+                url = f"http://{ip_camara}/ISAPI/Traffic/channels/1/DelLicensePlateAuditData?format=json"
+                try:
+                    # Realizar la solicitud HTTP para eliminar la matrícula
+                    consulta = requests.put(url, json=estructura_json, auth=HTTPDigestAuth(user, passwd), timeout=timeout)
+                    if consulta.status_code == 200:
+                        print(f"[DATA DELETED] Dato eliminado: {ip_camara} {plate['plate']}")
+                        logger.info(f"[DATA DELETED] Dato eliminado: {ip_camara} {plate['plate']}")
+
+                        # Registrar la respuesta exitosa para la cámara
+                        respuestas_camaras.setdefault(ip_camara, []).append({'Operaciones': 'Ok'})
+                    
+                    elif consulta.status_code == 401:
+                        # Manejo de error si la solicitud excede el tiempo de espera
+                        print(f"[CLIENT] [ERROR] Credenciales incorrectas")
+                        enviar_respuesta(client_socket, '401 Unauthorized', 'Credenciales incorrectas')
+                        logger.error(f"[CLIENT] [ERROR] El cliente {ip_camara} demoró en responder")
 
                     else:
                         print(f"[ERROR] Error al eliminar el dato: {ip_camara} {plate['plate']}")
