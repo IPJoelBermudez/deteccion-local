@@ -129,8 +129,6 @@ def borrar_matricula(datos):
     ip_camaras = list(set(datos['camaras']))
     plates = datos['plates']
     ids = obtener_id_matricula(datos)
-    print(ids)
-    input()
     print(f"[ERROR] Matricula no encontrado: {ip_camara} {plate}")
     enviar_respuesta(client_socket, '200 OK', 'Ok')
     logger.info(f"[DATA DELETED] Dato eliminado: {ip_camara} {plate}")        
