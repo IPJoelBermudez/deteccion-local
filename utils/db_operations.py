@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 from .modules import random,mysql
-=======
-from modules import random,mysql
->>>>>>> ebb0740fb1417eb066bfde2a9a88f7b0eb4c0b8c
 
 # Verifica si una estadía ya existe en la base de datos
 def existe_estadia(cursor, Creation_day, vehicle_id):
