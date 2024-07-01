@@ -4,7 +4,7 @@
 Ejecutar el servidor con los argumentos de línea de comandos necesarios:
 
 ```sh
-python servidor_gestor_matriculas.py -u USUARIO -c CONTRASEÑA [-p PUERTO]
+python api_rest_camaras.py -u USUARIO -c CONTRASEÑA [-p PUERTO]
 ```
 
 - `-u, --usuario`: El usuario para la autenticación HTTP Digest.
@@ -14,7 +14,7 @@ python servidor_gestor_matriculas.py -u USUARIO -c CONTRASEÑA [-p PUERTO]
 **Ejemplo:**
 
 ```sh
-python servidor_gestor_matriculas.py -u admin -c password -p 8080
+python api_rest_camaras.py -u admin -c password -p 8080
 ```
 
 
